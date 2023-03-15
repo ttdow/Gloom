@@ -3,7 +3,6 @@ import random
 from random import randint
 import sys
 import os
-from uuid import uuid4
 
 import gym
 import gym_fightingice
@@ -220,25 +219,6 @@ def train_model(model, name, trainX, trainY):
     print(type(trainX)) # list
 
     #model.forward(trainX)
-
-def train_DIAYN(name, num_skills, clear=False):
-
-    # Extract training data
-    trainX, class_trainY = classifier_training_data(True)
-
-    # For each skill, we generate our trainY then train
-    for skill in range(num_skills):
-
-        # Load classifier
-        classifier = Classifier("DIAYN\\Classifier " + str(num_skills), num_skills)
-
-        # Generate reward
-        trainY = generate_reward(classifier, skill, trainX, num_skills)
-
-        # Load skill and train
-        n = "DIAYN\\Skill " + str(skill + 1)
-        model = DNN()
-        train_model(model, n, trainX, trainY)
     
 def main():
 
@@ -286,7 +266,6 @@ def main():
         epsilon = max((anneal / n_episodes) - 0.05, EPSILON_END)
 
         env = training_episodes(model, env, action_strs, action_vecs, epsilon)
-        train_DIAYN(name, num_skills, clear=True)
 
     env.close()
     exit()

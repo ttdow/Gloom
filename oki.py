@@ -268,6 +268,7 @@ def main():
     model = DNN()
     y = model(x) #Input: state, action space, Output: action
     print("y = ", y)
+    
     EPSILON_START = 0.95
     EPSILON_END = 0.05
     epsilon = EPSILON_START
