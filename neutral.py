@@ -38,6 +38,7 @@ class Agent():
         if torch.rand(1)[0] < epsilon:
             # Explore
             action = torch.tensor([np.random.choice(range(self.n_act))]).item()
+            action = 29
         else:
             # Exploit
             if type(obs) != np.ndarray:
@@ -47,6 +48,7 @@ class Agent():
             q_values = self.model(obs)
             best_q_value = torch.argmax(q_values)
             action = best_q_value.item()
+            action = 25
             #print("Best action Q-value = " + str(q_values.squeeze()[action].item()))
 
         return action
@@ -117,6 +119,10 @@ def main():
     action_strs = _actions.split(" ")
     action_vecs = []
 
+    #down_kick_ind = action_strs.index('THROW_B')
+    #print(down_kick_ind)
+    #exit()
+
     # Onehot encoding for actions
     for i in range(len(action_strs)):
         v = np.zeros(len(action_strs), dtype=np.float32)
@@ -152,8 +158,9 @@ def main():
         round = 0
         total_reward = 0
 
+        prev_opp_state = -1
         while round < n_rounds:
-
+            
             action = agent.act(state, epsilon)
             next_state, reward, done, _ = env.step(action)
 
@@ -169,9 +176,12 @@ def main():
             temp = env.getP2().state
 
             if type(temp) != str:
-                if temp.equals(env.getP2().gateway.jvm.enumerate.State.DOWN):
+                #if temp.equals(env.getP2().gateway.jvm.enumerate.State.DOWN):
+                if temp.equals(env.getP2().gateway.jvm.enumerate.State.DOWN) and temp != prev_opp_state:
                     print(temp)
+                    print('---')
                     reward += 1000
+            prev_opp_state = temp 
 
             #if next_state[68] < 0.5:
             #    print(next_state)
