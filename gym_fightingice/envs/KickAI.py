@@ -3,6 +3,7 @@ from py4j.java_gateway import get_field
 class KickAI(object):
   def __init__(self, gateway):
     self.gateway = gateway
+    self.state = "STAND"
 
   def close(self):
     pass
@@ -38,6 +39,15 @@ class KickAI(object):
     # which is modified in the processing part
     return self.inputKey
 
+  def getState(self):
+    my = self.frameData.getCharacter(self.player)
+    print(self)
+    #print(type(my))
+
+    #my_x = my.getX()
+    #my_state = my.getState()
+    #return my_state
+
   def processing(self):
     # First we check whether we are at the end of the round
     if self.frameData.getEmptyFlag() or self.frameData.getRemainingFramesNumber() <= 0:
@@ -62,21 +72,22 @@ class KickAI(object):
     my = self.frameData.getCharacter(self.player)
     my_x = my.getX()
     my_state = my.getState()
-    
+    self.state = my_state
+
     opp = self.frameData.getCharacter(not self.player)
     opp_x = opp.getX()
     opp_state = opp.getState()
-    
-    
+
     if self.cc.getSkillFlag():
       # If there is a previous "command" still in execution, then keep doing it
       self.inputKey = self.cc.getSkillKey()
       return
+    
     # We empty the keys and cancel skill just in case
     self.inputKey.empty()
     self.cc.skillCancel()
     
-    self.cc.commandCall("B")
+    #self.cc.commandCall("")
 
   class Java:
     implements = ["aiinterface.AIInterface"]

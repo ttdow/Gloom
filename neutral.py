@@ -9,6 +9,7 @@ from collections import namedtuple
 import gym
 import gym_fightingice
 from gym_fightingice.envs.Machete import Machete
+from gym_fightingice.envs.KickAI import KickAI
 
 import torch
 
@@ -46,7 +47,7 @@ class Agent():
             q_values = self.model(obs)
             best_q_value = torch.argmax(q_values)
             action = best_q_value.item()
-            print("Best action Q-value = " + str(q_values.squeeze()[action].item()))
+            #print("Best action Q-value = " + str(q_values.squeeze()[action].item()))
 
         return action
     
@@ -126,7 +127,7 @@ def main():
 
     # Setup observation space
     env = gym.make("FightingiceDataNoFrameskip-v0", java_env_path="", port=4242, freq_restart_java=100000)
-    state = env.reset(p2=Machete)
+    state = env.reset(p2=KickAI)
 
     #print("Observation space length: ", state.shape[0]) # 143
 
@@ -147,7 +148,7 @@ def main():
 
     for episode in range(n_episodes):
 
-        state = env.reset(p2=Machete)
+        state = env.reset(p2=KickAI)
         round = 0
         total_reward = 0
 
@@ -155,6 +156,29 @@ def main():
 
             action = agent.act(state, epsilon)
             next_state, reward, done, _ = env.step(action)
+
+            #if next_state[3] < 0.5:
+            #    print(next_state[3])
+            #    print(next_state[8:63])
+
+            #if next_state[17] > 0.9:       # Seems to correspond to being downed
+            #    print("Player downed!")
+
+            reward = -1
+
+            temp = env.getP2().state
+
+            if type(temp) != str:
+                if temp.equals(env.getP2().gateway.jvm.enumerate.State.DOWN):
+                    print(temp)
+                    reward += 1000
+
+            #if next_state[68] < 0.5:
+            #    print(next_state)
+
+            #if next_state[82] > 0.9:
+            #    print("Opponenet downed")
+
             total_reward += reward
             memory.push(state, action, next_state, reward, done)
             state = next_state
@@ -165,7 +189,7 @@ def main():
 
             if done:
                 round += 1
-                state = env.reset(p2=Machete)
+                state = env.reset(p2=KickAI)
 
         print("Total reward: " + str(total_reward))
         print("Memory size: " + str(len(memory)))

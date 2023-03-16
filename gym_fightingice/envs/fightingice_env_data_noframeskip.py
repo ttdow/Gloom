@@ -226,6 +226,8 @@ class FightingiceEnv_Data_NoFrameskip(gym.Env):
             self._close_gateway()
             self._close_java_game()
 
+    def getP2(self):
+        return self.p2
 
 if __name__ == "__main__":
     env = FightingiceEnv_Data_Frameskip()
