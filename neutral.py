@@ -32,18 +32,23 @@ class Agent():
     
     def act(self, obs, epsilon):
 
-        max_q_value = 0
+        action = 0
 
         if torch.rand(1)[0] < epsilon:
             # Explore
-            max_q_value = torch.tensor([np.random.choice(range(self.n_act))]).item()
+            action = torch.tensor([np.random.choice(range(self.n_act))]).item()
         else:
             # Exploit
+            if type(obs) != np.ndarray:
+                obs = obs[0]
+
             obs = torch.FloatTensor(obs).unsqueeze(0).to(self.device)
             q_values = self.model(obs)
-            max_q_value = torch.argmax(q_values).item()
+            best_q_value = torch.argmax(q_values)
+            action = best_q_value.item()
+            print("Best action Q-value = " + str(q_values.squeeze()[action].item()))
 
-        return max_q_value
+        return action
     
     def learn(self, memory, batch_size):
 
@@ -53,33 +58,26 @@ class Agent():
         #transitions = memory.sample(batch_size) # (states, actions, next_states, rewards, dones)
         #batch = Transition(*zip(*transitions))
 
-        states, actions, rewards, next_states, dones = memory.sample(1)
+        states, actions, next_states, rewards, dones = memory.sample(1)
 
-        print(type(states))
-        if type(states) == np.ndarray:
-            states = torch.tensor(states)
-        else:
-            return
+        if type(states) != np.ndarray:
+            states = states[0]
 
-        print("New state: " + str(type(states)))
+        state = torch.tensor(states).float().to(self.device)
+        action = torch.tensor(actions).to(self.device)
+        reward = torch.tensor(rewards).to(self.device)
+        next_state = torch.tensor(next_states).float().to(self.device)
+        done = torch.tensor(dones).int().to(self.device)
 
-        """
-        state_batch = torch.tensor(states).to(self.device)
-        action_batch = torch.tensor(actions).to(self.device)
-        reward_batch = torch.tensor(rewards).to(self.device)
-        next_state_batch = torch.tensor(next_states).to(self.device)
-        done_batch = torch.tensor(dones).to(self.device)
+        q_values = self.model(state)#.gather(1, action.unsqueeze(1))
+        next_q_values = self.model(next_state)#.max(1)[0].detach()
+        expected_q_values = reward + self.gamma * next_q_values * (1 - done)
 
-        q_values = self.model(state_batch).gather(1, action_batch.unsqueeze(1))
-        next_q_values = self.model(next_state_batch).max(1)[0].detach()
-        expected_q_values = reward_batch + self.gamma * next_q_values * (1 - done_batch)
-
-        loss = self.loss_fn(q_values, expected_q_values.unsqueeze(1))
+        loss = self.loss_fn(q_values, expected_q_values)
 
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
-        """
     
 class ReplayMemory():
     def __init__(self, capacity):
@@ -91,9 +89,15 @@ class ReplayMemory():
         return len(self.memory)
 
     def push(self, state, action, next_state, reward, done):
+        
+        # Make more room in memory if needed
         if len(self.memory) < self.capacity:
             self.memory.append(None)
+
+        # Save a new memory to circular buffer
         self.memory[self.position] = (state, action, next_state, reward, done)
+
+        # Cycle through circular buffer
         self.position = (self.position + 1) % self.capacity
 
     def sample(self, batch_size):
@@ -118,37 +122,28 @@ def main():
         v[i] = 1
         action_vecs.append(v)
 
-    x = torch.tensor(action_vecs)
-
-    print("Action space length: ", len(action_vecs)) # 56
+    #print("Action space length: ", len(action_vecs)) # 56
 
     # Setup observation space
     env = gym.make("FightingiceDataNoFrameskip-v0", java_env_path="", port=4242, freq_restart_java=100000)
     state = env.reset(p2=Machete)
 
-    print(state.shape)    # (143, )
-    print("Observation space length: ", state.shape[0]) # 143
-    print(type(state[0])) # numpy.float64
+    #print("Observation space length: ", state.shape[0]) # 143
 
     EPSILON_MAX = 0.95
     EPSILON_DECAY = 0.995
     EPSILON_MIN = 0.05
     epsilon = EPSILON_MAX
 
-    # Test model
+    # Initialize agent
     agent = Agent(state.shape[0], len(action_vecs))
     memory = ReplayMemory(10000)
-    action = agent.act(state, epsilon) # int
-
-    print(type(action))
-    print("y = ", action)
 
     batch_size = 128
 
-    done = False
-
     n_episodes = 100
     n_rounds = 3
+    done = False
 
     for episode in range(n_episodes):
 
