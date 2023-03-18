@@ -8,6 +8,7 @@ from uuid import uuid4
 import gym
 import gym_fightingice
 from gym_fightingice.envs.Machete import Machete
+from gym_fightingice.envs.WakeUp import WakeUp
 
 import torch
 
@@ -263,7 +264,7 @@ def main():
     print("Action space length: ", len(action_vecs))
 
     env = gym.make("FightingiceDataNoFrameskip-v0", java_env_path="", port=4242, freq_restart_java=100000)
-    obs = env.reset(p2=Machete)
+    obs = env.reset(p2=WakeUp)
 
     print("Observation space length: ", obs.shape[0])
 

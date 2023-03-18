@@ -1,6 +1,6 @@
 from py4j.java_gateway import get_field
 
-class KickAI(object):
+class WakeUp(object):
   def __init__(self, gateway):
     self.gateway = gateway
     self.state = "STAND"
@@ -32,6 +32,9 @@ class KickAI(object):
     self.gameData = gameData
     self.simulator = self.gameData.getSimulator()
     self.isGameJustStarted = True
+    self.prev_state = None
+    self.WakeUp = False
+    self.frameCount = 0
     return 0
 
   def input(self):
@@ -73,6 +76,10 @@ class KickAI(object):
     my_x = my.getX()
     my_state = my.getState()
     self.state = my_state
+    if self.state == self.prev_state:
+        self.frameCount += 1
+    else:
+        self.frameCount = 0
 
     opp = self.frameData.getCharacter(not self.player)
     opp_x = opp.getX()
@@ -87,7 +94,23 @@ class KickAI(object):
     self.inputKey.empty()
     self.cc.skillCancel()
     
-    self.cc.commandCall("B")
-
+    #self.cc.commandCall("")
+    #if my_state.equals(self.gateway.jvm.enumerate.State.DOWN):
+    #    self.cc.commandCall("STAND_F_D_DFB")
+    if (self.prev_state != self.state) and (my_state.equals(self.gateway.jvm.enumerate.State.STAND)):
+        #if opp_state.equals(self.gateway.jvm.enumerate.State.AIR):
+        #    self.cc.commandCall("STAND_F_D_DFA")
+        #else:
+        #    print("IMMA MASH")
+        #    self.cc.commandCall("A")
+        self.WakeUp = True
+    if (self.WakeUp == True) and (self.frameCount == 2):
+        if opp_state.equals(self.gateway.jvm.enumerate.State.AIR):
+            self.cc.commandCall("STAND_F_D_DFA")
+        else:
+            self.cc.commandCall("A")
+        self.frameCount = 0
+        self.WakeUp = False
+    self.prev_state = self.state
   class Java:
     implements = ["aiinterface.AIInterface"]

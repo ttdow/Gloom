@@ -10,6 +10,7 @@ import gym
 import gym_fightingice
 from gym_fightingice.envs.Machete import Machete
 from gym_fightingice.envs.KickAI import KickAI
+from gym_fightingice.envs.WakeUp import WakeUp
 
 import torch
 
@@ -38,7 +39,7 @@ class Agent():
         if torch.rand(1)[0] < epsilon:
             # Explore
             action = torch.tensor([np.random.choice(range(self.n_act))]).item()
-            action = 29
+            #action = 29
         else:
             # Exploit
             if type(obs) != np.ndarray:
@@ -48,7 +49,7 @@ class Agent():
             q_values = self.model(obs)
             best_q_value = torch.argmax(q_values)
             action = best_q_value.item()
-            action = 25
+            #action = 25
             #print("Best action Q-value = " + str(q_values.squeeze()[action].item()))
 
         return action
@@ -133,7 +134,7 @@ def main():
 
     # Setup observation space
     env = gym.make("FightingiceDataNoFrameskip-v0", java_env_path="", port=4242, freq_restart_java=100000)
-    state = env.reset(p2=KickAI)
+    state = env.reset(p2=WakeUp)
 
     #print("Observation space length: ", state.shape[0]) # 143
 
@@ -154,7 +155,7 @@ def main():
 
     for episode in range(n_episodes):
 
-        state = env.reset(p2=KickAI)
+        state = env.reset(p2=WakeUp)
         round = 0
         total_reward = 0
 
