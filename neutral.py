@@ -5,6 +5,7 @@ import sys
 import os
 from uuid import uuid4
 from collections import namedtuple
+import math
 
 import gym
 import gym_fightingice
@@ -111,6 +112,34 @@ class ReplayMemory():
         states, actions, next_states, rewards, dones = self.memory[idx]
 
         return states, actions, next_states, rewards, dones
+    
+def calc_reward(env, env_state, action, next_env_state, prev_opp_state, opp_state):
+
+    reward = 0
+
+    if type(env_state) != np.ndarray:
+        env_state = env_state[0]
+
+    print(env_state[92:97])
+
+    #print(type(env_state))
+    #print(env_state.shape)
+
+    playerX = env_state[2]
+    opponentX = env_state[67]
+
+    #print("Player X: " + str(playerX))
+    #print("Opponent X: " + str(opponentX))
+    dist = abs(playerX - opponentX) * 960
+    #print("Distance: " + str(int(dist)))
+
+    if type(opp_state) != str:
+        if opp_state.equals(env.getP2().gateway.jvm.enumerate.State.DOWN) and opp_state != prev_opp_state:
+            print(opp_state)
+            print('---')
+            reward += 1000
+
+    return reward
    
 def main():
 
@@ -144,7 +173,7 @@ def main():
 
     # Initialize agent
     agent = Agent(state.shape[0], len(action_vecs))
-    memory = ReplayMemory(10000)
+    memory = ReplayMemory(50000)
 
     batch_size = 128
 
@@ -164,30 +193,13 @@ def main():
             action = agent.act(state, epsilon)
             next_state, reward, done, _ = env.step(action)
 
-            #if next_state[3] < 0.5:
-            #    print(next_state[3])
-            #    print(next_state[8:63])
+            # Get opponent's current state from env (STAND, CROUCH, AIR, DOWN)
+            opp_state = env.getP2().state
 
-            #if next_state[17] > 0.9:       # Seems to correspond to being downed
-            #    print("Player downed!")
+            calc_reward(env, state, action, next_state, prev_opp_state, opp_state)
 
-            reward = -1
-
-            temp = env.getP2().state
-
-            if type(temp) != str:
-                #if temp.equals(env.getP2().gateway.jvm.enumerate.State.DOWN):
-                if temp.equals(env.getP2().gateway.jvm.enumerate.State.DOWN) and temp != prev_opp_state:
-                    print(temp)
-                    print('---')
-                    reward += 1000
-            prev_opp_state = temp 
-
-            #if next_state[68] < 0.5:
-            #    print(next_state)
-
-            #if next_state[82] > 0.9:
-            #    print("Opponenet downed")
+            # Update opponent's last state
+            prev_opp_state = opp_state
 
             total_reward += reward
             memory.push(state, action, next_state, reward, done)

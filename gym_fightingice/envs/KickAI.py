@@ -87,7 +87,7 @@ class KickAI(object):
     self.inputKey.empty()
     self.cc.skillCancel()
     
-    #self.cc.commandCall("")
+    #self.cc.commandCall("B")
 
   class Java:
     implements = ["aiinterface.AIInterface"]
