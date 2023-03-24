@@ -9,6 +9,7 @@ import gym
 import gym_fightingice
 from gym_fightingice.envs.Machete import Machete
 from gym_fightingice.envs.KickAI import KickAI
+from gym_fightingice.envs.WakeUp import WakeUp
 
 import torch 
 
@@ -242,12 +243,6 @@ def train_DIAYN(name, num_skills, clear=False):
         train_model(model, n, trainX, trainY)
 
 def main():
-    print('start oki training')
-
-    num_skills = 1
-
-    name = 'DIAYN\\Skill'
-
     _actions = "AIR AIR_A AIR_B AIR_D_DB_BA AIR_D_DB_BB AIR_D_DF_FA AIR_D_DF_FB AIR_DA AIR_DB AIR_F_D_DFA AIR_F_D_DFB AIR_FA AIR_FB AIR_GUARD AIR_GUARD_RECOV AIR_RECOV AIR_UA AIR_UB BACK_JUMP BACK_STEP CHANGE_DOWN CROUCH CROUCH_A CROUCH_B CROUCH_FA CROUCH_FB CROUCH_GUARD CROUCH_GUARD_RECOV CROUCH_RECOV DASH DOWN FOR_JUMP FORWARD_WALK JUMP LANDING NEUTRAL RISE STAND STAND_A STAND_B STAND_D_DB_BA STAND_D_DB_BB STAND_D_DF_FA STAND_D_DF_FB STAND_D_DF_FC STAND_F_D_DFA STAND_F_D_DFB STAND_FA STAND_FB STAND_GUARD STAND_GUARD_RECOV STAND_RECOV THROW_A THROW_B THROW_HIT THROW_SUFFER"
     action_strs = _actions.split(" ")
     action_vecs = {}
@@ -260,27 +255,7 @@ def main():
     print("Action space length", len(action_vecs))
 
     env = gym.make("FightingiceDataNoFrameskip-v0", java_env_path="", port=4242, freq_restart_java=100000)
-    obs = env.reset(p2 = KickAI)
-    obs = torch.from_numpy(obs).float()
-    actions = torch.from_numpy(action_vecs['AIR']).float()
-    x = torch.cat((obs, actions))
-
-    model = DNN()
-    y = model(x) #Input: state, action space, Output: action
-    print("y = ", y)
-    
-    EPSILON_START = 0.95
-    EPSILON_END = 0.05
-    epsilon = EPSILON_START
-
-    n_episodes = 1
-
-    for episode in range(1, n_episodes + 1):
-        anneal = n_episodes - episode + 1
-        epsilon = max((anneal / n_episodes) - 0.05, EPSILON_END)
-
-        env = training_episodes(model, env, action_strs, action_vecs, epsilon)
-        train_DIAYN(name, num_skills, clear=True)
+    state = env.reset(p2 = WakeUp)
 
     env.close()
     exit()
