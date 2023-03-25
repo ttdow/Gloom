@@ -2,101 +2,16 @@ import numpy as np
 import random
 from random import randint
 import sys
-import os
-from uuid import uuid4
-from collections import namedtuple
-import math
-
-import gym
-import gym_fightingice
-from gym_fightingice.envs.Machete import Machete
-from gym_fightingice.envs.KickAI import KickAI
+import time
+import pandas as pd
 
 import torch
+import gym
 
-from classifier import Classifier
-from DNN import DNN
+from Agent import Agent
+from gym_fightingice.envs.MirrorAI import MirrorAI
+from gym_fightingice.envs.Machete import Machete
 
-class Agent():
-    def __init__(self, n_obs, n_act):
-
-        self.n_obs = n_obs
-        self.n_act = n_act
-
-        self.device = torch.device("cuda:0 " if torch.cuda.is_available() else "cpu")
-        self.model = DNN().to(self.device)
-
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=1e-3)
-        self.loss_fn = torch.nn.SmoothL1Loss()
-        self.gamma = 0.99
-    
-    def act(self, state, epsilon):
-
-        action = 0
-
-        # Explore
-        if torch.rand(1)[0] < epsilon:  
-            action = torch.tensor([np.random.choice(range(self.n_act))]).item()
-        # Exploit
-        else:
-            # Check for weird edge case       
-            if type(state) != np.ndarray:
-                state = state[0]
-
-            # Convert state data to tensor
-            state = torch.FloatTensor(state).unsqueeze(0).to(self.device)
-
-            # Calculate Q-values of actions given state
-            q_values = self.model(state)
-
-            # Get the best action as determined by the Q-values
-            best_q_value = torch.argmax(q_values)
-            action = best_q_value.item()
-
-        return action
-    
-    def learn(self, memory, batch_size):
-
-        # Ensure their are enough memories for a batch
-        if len(memory) < batch_size:
-            return
-        
-        # Sample a random batch of memories
-        states, actions, next_states, rewards, dones = memory.sample(batch_size)
-
-        # Convert states from tuples of tensors to multi-dimensional tensors
-        states = torch.stack(states, dim=0)
-        next_states = torch.stack(next_states, dim=0)
-
-        # Give the DNN the batch of states to generate Q-values
-        q_values = self.model(states) 
-        next_q_values = self.model(next_states)
-
-        # Convert tuples to 2D tensors to work with batched states data
-        rewards = torch.tensor(list(rewards)).unsqueeze(1)
-        dones = torch.tensor(list(dones)).unsqueeze(1)
-
-        # Use Bellman equation to determine optimal action values
-        expected_q_values = rewards + (self.gamma * next_q_values * (1 - dones.long()))
-
-        # Calculate loss from optimal actions and taken actions
-        loss = self.loss_fn(q_values, expected_q_values)
-
-        # Optimize
-        self.optimizer.zero_grad()
-        loss.backward()
-        self.optimizer.step()
-
-    def save(self, file):
-        checkpoint = {'model': self.model.state_dict(),
-                      'optimizer': self.optimizer.state_dict()}
-        torch.save(checkpoint, file)
-
-    def load(self, file):
-        checkpoint = torch.load(file, map_location=self.device)
-        self.model.load_state_dict(checkpoint['model'])
-        self.optimizer.load_state_dict(checkpoint['optimizer'])
-    
 class ReplayMemory():
     def __init__(self, capacity):
         self.capacity = capacity
@@ -136,31 +51,67 @@ class ReplayMemory():
 
         return states, actions, next_states, rewards, dones
     
+def GetDistance(env_state):
+
+    # Get normalized player positions in stage
+    playerX = env_state[2]
+    opponentX = env_state[67]
+
+    # Calculate distance between players in pixels
+    dist = abs(playerX - opponentX) * 960
+
+    return int(dist)
+
 def calc_reward(env, env_state, action, next_env_state, prev_opp_state, opp_state):
 
     reward = 0
 
+    # Ensure the environment state is in the correct format
     if type(env_state) != np.ndarray:
         env_state = env_state[0]
 
-    #print(env_state[92:97])
-
-    #print(type(env_state))
-    #print(env_state.shape)
-
-    playerX = env_state[2]
-    opponentX = env_state[67]
-
-    #print("Player X: " + str(playerX))
-    #print("Opponent X: " + str(opponentX))
-    dist = abs(playerX - opponentX) * 960
-    #print("Distance: " + str(int(dist)))
-
+    # ------------------- Huge incentive for downs ----------------------------
     if type(opp_state) != str:
         if opp_state.equals(env.getP2().gateway.jvm.enumerate.State.DOWN) and opp_state != prev_opp_state:
-            #print(opp_state)
-            #print('---')
             reward += 1000
+
+    # ------------------ Incentivize dealing damage to opponent ---------------
+    damage_done = (env_state[65] - next_env_state[65]) * 100
+    if damage_done > 0:
+        reward += damage_done    # Reward proportional to damage done
+
+    # ------------------ Incentivize taking less damage -----------------------
+    damage_taken = (env_state[0] - next_env_state[0]) * 100
+    if damage_taken > 0:
+        reward -= damage_taken  # Penalize proportional to damage taken
+
+    # TODO Customize reward based on spacing state
+    # -------------------- Determine spacing state ----------------------------
+    dist = GetDistance(env_state)
+    if dist <= 135:
+        # Close range / Shimmy
+        # At close range, all attack options (pokes, normals, and specials) can connect
+        # Generally want to be on offensive, but once your turn is over you either try to extend
+        #  your turn or return to neutral
+        reward += damage_done
+        reward -= damage_taken      # Double damage_taken and damage_done bonus/malus in close range
+
+    elif dist <= 250:
+        # Mid range / Footsie range
+        # Just beyond the reach of your opponent's pokes and normals, but within jump-in range
+        # Purposefully move in and out of your opponent's attack range to bait
+        reward += 1     # Small reward for being in mid
+
+    elif dist <= 500:
+        # Far range
+        # Only have to worry about projectiles
+        reward += 0
+
+    playerX = env_state[2]
+    if playerX < 200 or playerX > 760:
+        # Full screen
+        # Be wary of corner
+        reward -= 10    # Penalize for being in the corner
 
     return reward
    
@@ -173,7 +124,10 @@ def main():
     if (len(sys.argv) > 1):
         file = str(sys.argv[1])
 
-    # Setup action space
+    # Read frame data from csv
+    framedata = pd.read_csv("./data/characters/ZEN/Motion.csv")
+
+    # Setup action spac
     _actions = "AIR AIR_A AIR_B AIR_D_DB_BA AIR_D_DB_BB AIR_D_DF_FA AIR_D_DF_FB AIR_DA AIR_DB AIR_F_D_DFA AIR_F_D_DFB AIR_FA AIR_FB AIR_GUARD AIR_GUARD_RECOV AIR_RECOV AIR_UA AIR_UB BACK_JUMP BACK_STEP CHANGE_DOWN CROUCH CROUCH_A CROUCH_B CROUCH_FA CROUCH_FB CROUCH_GUARD CROUCH_GUARD_RECOV CROUCH_RECOV DASH DOWN FOR_JUMP FORWARD_WALK JUMP LANDING NEUTRAL RISE STAND STAND_A STAND_B STAND_D_DB_BA STAND_D_DB_BB STAND_D_DF_FA STAND_D_DF_FB STAND_D_DF_FC STAND_F_D_DFA STAND_F_D_DFB STAND_FA STAND_FB STAND_GUARD STAND_GUARD_RECOV STAND_RECOV THROW_A THROW_B THROW_HIT THROW_SUFFER"
     action_strs = _actions.split(" ")
     action_vecs = []
@@ -186,7 +140,7 @@ def main():
 
     # Setup observation space
     env = gym.make("FightingiceDataNoFrameskip-v0", java_env_path="", port=4242, freq_restart_java=100000)
-    state = env.reset(p2=KickAI)
+    state = env.reset(p2=Machete)
 
     # Setup epsilon values for explore/exploit calcs
     EPSILON_MAX = 0.95
@@ -205,29 +159,59 @@ def main():
 
     # Hyperparameters
     batch_size = 128
-    n_episodes = 100
+    n_episodes = 50
     n_rounds = 3
 
     # Flag for round finished
     done = False
 
+    # Initialize timing data
+    frame_counter = 0
+    accumulator = 0
+    old_time = time.time()
+
     # Training loop
     for episode in range(n_episodes):
 
-        state = env.reset(p2=KickAI)
+        state = env.reset(p2=Machete)
         round = 0
         total_reward = 0
 
         prev_opp_state = -1
         while round < n_rounds:
             
+            # Calculate time since last frame
+            new_time = time.time()
+            dt = new_time - old_time
+            old_time = new_time
+
+            # Track frame rate
+            accumulator += dt
+            if accumulator > 1.0:
+                frame_counter = 0
+                accumulator = 0
+            
+            frame_counter += 1
+
+            # Ensure the environment state is in the correct format
+            if type(state) != np.ndarray:
+                state = state[0]
+
             action = agent.act(state, epsilon)
+
+            # Testing attack distances
+            #dist = GetDistance(state)
+            #if (dist <= 240):
+            #    action = 48
+            #else:
+            #    action = 32
+
             next_state, reward, done, _ = env.step(action)
 
             # Get opponent's current state from env (STAND, CROUCH, AIR, DOWN)
             opp_state = env.getP2().state
 
-            calc_reward(env, state, action, next_state, prev_opp_state, opp_state)
+            reward = calc_reward(env, state, action, next_state, prev_opp_state, opp_state)
 
             # Update opponent's last state
             prev_opp_state = opp_state
@@ -242,9 +226,11 @@ def main():
 
             if done:
                 round += 1
-                state = env.reset(p2=KickAI)
+                state = env.reset(p2=Machete)
+                frame_counter = 0
 
         print("Total reward: " + str(total_reward))
+        print("Epsilon: " + str(epsilon))
 
     # Save this model
     agent.save('./checkpoint.pt')
