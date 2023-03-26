@@ -1,4 +1,5 @@
 from py4j.java_gateway import get_field
+import random
 
 class WakeUp(object):
   def __init__(self, gateway):
@@ -106,11 +107,15 @@ class WakeUp(object):
         self.WakeUp = True
     if (self.WakeUp == True) and (self.frameCount == 2):
         if opp_state.equals(self.gateway.jvm.enumerate.State.AIR):
-            print("REVERSAL")
             self.cc.commandCall("STAND_F_D_DFA")
         else:
-            print("MASH")
-            self.cc.commandCall("A")
+            e = random.uniform(0,1)
+            if e <= 0.5:
+              self.cc.commandCall("A")
+              self.cc.commandCall("A")
+            if e > 0.5:
+               self.cc.commandCall("B")
+               self.cc.commandCall("B")
         self.frameCount = 0
         self.WakeUp = False
     self.prev_state = self.state

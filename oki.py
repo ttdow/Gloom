@@ -29,12 +29,9 @@ class Agent():
         self.gamma = 0.99
 
     def act_not_training(self, state, epsilon):
-        action = 0
-        if torch.rand(1)[0] < epsilon:
-            action = 29
-        else:
+        action = 29
+        if torch.rand(1)[0] < 0.2:
             action = 25
-
         return action
 
     def act(self, state, epsilon):
@@ -222,6 +219,8 @@ def main():
     done = False
 
     #Training loop
+    player_hp_weight = 1.0
+    opp_hp_weight = 0.25
     for episode in range(n_episodes):
         state = env.reset(p2 = WakeUp)
         round = 0
@@ -230,38 +229,46 @@ def main():
         prev_opp_state = -1
         prev_player_state = -1
         opp_state = -1
-            
-        while round < n_rounds:
 
-            action = agent.act(state, epsilon)
-            next_state, reward, done, _ = env.step(action)
+        training = False
+        action_count = 0
+        while round < n_rounds:
 
             #print(dir(env.getP2()))
             #exit()
-            print(env.getP2().WakeUp)
             opp_state = env.getP2().state
-            #if type(opp_state) != str:
-            #    if opp_state.equals(env.getP2().gateway.jvm.enumerate.State.DOWN) and opp_state != prev_opp_state:
-            #        print(opp_state)
-            #print(state[65] - prev_state[65])
-            # Get opponent's current state from env (STAND, CROUCH, AIR, DOWN)
+            if type(opp_state) != str and type(prev_opp_state) != str and type(opp_state) != int and type(prev_opp_state) != int:
+                if opp_state.equals(env.getP2().gateway.jvm.enumerate.State.STAND) and prev_opp_state.equals(env.getP2().gateway.jvm.enumerate.State.DOWN):
+                    #print('TRAINING START')
+                    training = True
+            #print(state [0], state[1], state[2]) 
+            if training == True:
+                action_count += 1
+                #print("TRAINING")
+                action = agent.act(state, epsilon)
+                next_state, reward, done, _ = env.step(action)
+                reward = 0
+                if len(prev_state) == 143 and len(state) == 143:
+                    reward = (opp_hp_weight * (prev_state[65] - state[65])) - (player_hp_weight * (prev_state[0] - state[0]))
+                print('reward: ', reward)
+                total_reward += reward
+                memory.push(state, action, next_state, reward, done, agent)
+                agent.learn(memory, batch_size)
 
-            #if len(state) == 143 and len(prev_state) == 143:
-            #    print(prev_state[65] - state[65])
-
-            calc_reward(env, state, action, next_state, prev_opp_state, opp_state)
-
+                epsilon = max(epsilon * EPSILON_DECAY, EPSILON_MIN)
+                if action_count == 2:
+                    #print('TRAINING STOP')
+                    training = False
+                    action_count = 0
+            elif training == False:
+                action = agent.act_not_training(state, epsilon)
+                next_state, reward, done, _ = env.step(action)
             # Update opponent's last state
             prev_state = state
             prev_opp_state = opp_state
 
-            total_reward += reward
-            memory.push(state, action, next_state, reward, done, agent)
             state = next_state
 
-            agent.learn(memory, batch_size)
-
-            epsilon = max(epsilon * EPSILON_DECAY, EPSILON_MIN)
 
             if done:
                 round += 1
