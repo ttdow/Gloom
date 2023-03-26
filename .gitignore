@@ -1,2 +1,6 @@
 /log/
+<<<<<<< HEAD
 gym_fightingice/envs/__pychache__/
+=======
+*.pyc
+>>>>>>> travis
