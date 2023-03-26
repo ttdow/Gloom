@@ -15,9 +15,10 @@ class KickAI(object):
 		
   # please define this method when you use FightingICE version 3.20 or later
   def roundEnd(self, x, y, z):
-    print(x)
-    print(y)
-    print(z)
+    #print(x)
+    #print(y)
+    #print(z)
+    return
 
   # please define this method when you use FightingICE version 4.00 or later
   def getScreenData(self, sd):
@@ -87,7 +88,7 @@ class KickAI(object):
     self.inputKey.empty()
     self.cc.skillCancel()
     
-    self.cc.commandCall("B")
+    #self.cc.commandCall("B")
 
   class Java:
     implements = ["aiinterface.AIInterface"]

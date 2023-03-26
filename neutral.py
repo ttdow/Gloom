@@ -5,6 +5,7 @@ import sys
 import os
 from uuid import uuid4
 from collections import namedtuple
+import math
 
 import gym
 import gym_fightingice
@@ -17,8 +18,6 @@ import torch
 from classifier import Classifier
 from DNN import DNN
 
-Transition = namedtuple('Transition', ('state', 'action', 'next_state', 'reward', 'done'))
-
 class Agent():
     def __init__(self, n_obs, n_act):
 
@@ -29,59 +28,75 @@ class Agent():
         self.model = DNN().to(self.device)
 
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=1e-3)
-        self.loss_fn = torch.nn.MSELoss()
+        self.loss_fn = torch.nn.SmoothL1Loss()
         self.gamma = 0.99
     
-    def act(self, obs, epsilon):
+    def act(self, state, epsilon):
 
         action = 0
 
-        if torch.rand(1)[0] < epsilon:
-            # Explore
+        # Explore
+        if torch.rand(1)[0] < epsilon:  
             action = torch.tensor([np.random.choice(range(self.n_act))]).item()
-            #action = 29
+        # Exploit
         else:
-            # Exploit
-            if type(obs) != np.ndarray:
-                obs = obs[0]
+            # Check for weird edge case       
+            if type(state) != np.ndarray:
+                state = state[0]
 
-            obs = torch.FloatTensor(obs).unsqueeze(0).to(self.device)
-            q_values = self.model(obs)
+            # Convert state data to tensor
+            state = torch.FloatTensor(state).unsqueeze(0).to(self.device)
+
+            # Calculate Q-values of actions given state
+            q_values = self.model(state)
+
+            # Get the best action as determined by the Q-values
             best_q_value = torch.argmax(q_values)
             action = best_q_value.item()
-            #action = 25
-            #print("Best action Q-value = " + str(q_values.squeeze()[action].item()))
 
         return action
     
     def learn(self, memory, batch_size):
 
-        #if len(memory) < batch_size:
-        #    return
+        # Ensure their are enough memories for a batch
+        if len(memory) < batch_size:
+            return
         
-        #transitions = memory.sample(batch_size) # (states, actions, next_states, rewards, dones)
-        #batch = Transition(*zip(*transitions))
+        # Sample a random batch of memories
+        states, actions, next_states, rewards, dones = memory.sample(batch_size)
 
-        states, actions, next_states, rewards, dones = memory.sample(1)
+        # Convert states from tuples of tensors to multi-dimensional tensors
+        states = torch.stack(states, dim=0)
+        next_states = torch.stack(next_states, dim=0)
 
-        if type(states) != np.ndarray:
-            states = states[0]
+        # Give the DNN the batch of states to generate Q-values
+        q_values = self.model(states) 
+        next_q_values = self.model(next_states)
 
-        state = torch.tensor(states).float().to(self.device)
-        action = torch.tensor(actions).to(self.device)
-        reward = torch.tensor(rewards).to(self.device)
-        next_state = torch.tensor(next_states).float().to(self.device)
-        done = torch.tensor(dones).int().to(self.device)
+        # Convert tuples to 2D tensors to work with batched states data
+        rewards = torch.tensor(list(rewards)).unsqueeze(1)
+        dones = torch.tensor(list(dones)).unsqueeze(1)
 
-        q_values = self.model(state)#.gather(1, action.unsqueeze(1))
-        next_q_values = self.model(next_state)#.max(1)[0].detach()
-        expected_q_values = reward + self.gamma * next_q_values * (1 - done)
+        # Use Bellman equation to determine optimal action values
+        expected_q_values = rewards + (self.gamma * next_q_values * (1 - dones.long()))
 
+        # Calculate loss from optimal actions and taken actions
         loss = self.loss_fn(q_values, expected_q_values)
 
+        # Optimize
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
+
+    def save(self, file):
+        checkpoint = {'model': self.model.state_dict(),
+                      'optimizer': self.optimizer.state_dict()}
+        torch.save(checkpoint, file)
+
+    def load(self, file):
+        checkpoint = torch.load(file, map_location=self.device)
+        self.model.load_state_dict(checkpoint['model'])
+        self.optimizer.load_state_dict(checkpoint['optimizer'])
     
 class ReplayMemory():
     def __init__(self, capacity):
@@ -92,11 +107,19 @@ class ReplayMemory():
     def __len__(self) -> int:
         return len(self.memory)
 
-    def push(self, state, action, next_state, reward, done):
+    def push(self, state, action, next_state, reward, done, agent):
         
         # Make more room in memory if needed
         if len(self.memory) < self.capacity:
             self.memory.append(None)
+
+        # Not sure why this happens        
+        if type(state) != np.ndarray:
+                state = state[0]
+
+        # Convert data from ndarray to tensor for ease of use
+        state = torch.from_numpy(state).float().to(agent.device)
+        next_state = torch.from_numpy(next_state).float().to(agent.device)
 
         # Save a new memory to circular buffer
         self.memory[self.position] = (state, action, next_state, reward, done)
@@ -105,24 +128,59 @@ class ReplayMemory():
         self.position = (self.position + 1) % self.capacity
 
     def sample(self, batch_size):
-        #batch = random.sample(self.memory, 1)#, batch_size)
-        #states, actions, next_states, rewards, dones = zip(*batch)
 
-        idx = random.randint(0, len(self)-1)
-        states, actions, next_states, rewards, dones = self.memory[idx]
+        # Grab <batch_size> random samples of memories
+        batch = random.sample(self.memory, batch_size)
+
+        # Zip the unpacked sample of memories
+        states, actions, next_states, rewards, dones = zip(*batch)
 
         return states, actions, next_states, rewards, dones
+    
+def calc_reward(env, env_state, action, next_env_state, prev_opp_state, opp_state):
+
+    reward = 0
+
+    if type(env_state) != np.ndarray:
+        env_state = env_state[0]
+
+    #print(env_state[92:97])
+
+    #print(type(env_state))
+    #print(env_state.shape)
+
+    playerX = env_state[2]
+    opponentX = env_state[67]
+
+    #print(env_state[65])
+    #print(env_state[65] - prev_state[65])
+
+    #print("Player X: " + str(playerX))
+    #print("Opponent X: " + str(opponentX))
+    dist = abs(playerX - opponentX) * 960
+    #print("Distance: " + str(int(dist)))
+
+    if type(opp_state) != str:
+        if opp_state.equals(env.getP2().gateway.jvm.enumerate.State.DOWN) and opp_state != prev_opp_state:
+            #print(opp_state)
+            #print('---')
+            reward += 1000
+
+    return reward
    
 def main():
+
+    # Check for checkpoint to load - CLI syntax: py neutral.py <filepath>
+    # Model saves automatically at the end of n_episodes (hyperparameter below)
+    # Can change file output name at the bottom of this function
+    file = ""
+    if (len(sys.argv) > 1):
+        file = str(sys.argv[1])
 
     # Setup action space
     _actions = "AIR AIR_A AIR_B AIR_D_DB_BA AIR_D_DB_BB AIR_D_DF_FA AIR_D_DF_FB AIR_DA AIR_DB AIR_F_D_DFA AIR_F_D_DFB AIR_FA AIR_FB AIR_GUARD AIR_GUARD_RECOV AIR_RECOV AIR_UA AIR_UB BACK_JUMP BACK_STEP CHANGE_DOWN CROUCH CROUCH_A CROUCH_B CROUCH_FA CROUCH_FB CROUCH_GUARD CROUCH_GUARD_RECOV CROUCH_RECOV DASH DOWN FOR_JUMP FORWARD_WALK JUMP LANDING NEUTRAL RISE STAND STAND_A STAND_B STAND_D_DB_BA STAND_D_DB_BB STAND_D_DF_FA STAND_D_DF_FB STAND_D_DF_FC STAND_F_D_DFA STAND_F_D_DFB STAND_FA STAND_FB STAND_GUARD STAND_GUARD_RECOV STAND_RECOV THROW_A THROW_B THROW_HIT THROW_SUFFER"
     action_strs = _actions.split(" ")
     action_vecs = []
-
-    #down_kick_ind = action_strs.index('THROW_B')
-    #print(down_kick_ind)
-    #exit()
 
     # Onehot encoding for actions
     for i in range(len(action_strs)):
@@ -130,29 +188,34 @@ def main():
         v[i] = 1
         action_vecs.append(v)
 
-    #print("Action space length: ", len(action_vecs)) # 56
-
     # Setup observation space
     env = gym.make("FightingiceDataNoFrameskip-v0", java_env_path="", port=4242, freq_restart_java=100000)
     state = env.reset(p2=WakeUp)
 
-    #print("Observation space length: ", state.shape[0]) # 143
-
+    # Setup epsilon values for explore/exploit calcs
     EPSILON_MAX = 0.95
-    EPSILON_DECAY = 0.995
+    EPSILON_DECAY = 0.99999975
     EPSILON_MIN = 0.05
     epsilon = EPSILON_MAX
 
-    # Initialize agent
+    # Initialize agent and experience replay memory
     agent = Agent(state.shape[0], len(action_vecs))
-    memory = ReplayMemory(10000)
+    memory = ReplayMemory(50000)
 
+    # Load model if it exists
+    if file != "":
+        agent.load(file)
+        print("Model: " + file + " loaded.")
+
+    # Hyperparameters
     batch_size = 128
-
     n_episodes = 100
     n_rounds = 3
+
+    # Flag for round finished
     done = False
 
+    # Training loop
     for episode in range(n_episodes):
 
         state = env.reset(p2=WakeUp)
@@ -160,38 +223,26 @@ def main():
         total_reward = 0
 
         prev_opp_state = -1
+        prev_state = state
         while round < n_rounds:
             
             action = agent.act(state, epsilon)
             next_state, reward, done, _ = env.step(action)
+            #print(state[65] - prev_state[65])
+            # Get opponent's current state from env (STAND, CROUCH, AIR, DOWN)
+            opp_state = env.getP2().state
 
-            #if next_state[3] < 0.5:
-            #    print(next_state[3])
-            #    print(next_state[8:63])
+            if len(state) == 143 and len(prev_state) == 143:
+                print(prev_state[65] - state[65])
 
-            #if next_state[17] > 0.9:       # Seems to correspond to being downed
-            #    print("Player downed!")
+            calc_reward(env, state, action, next_state, prev_opp_state, opp_state)
 
-            reward = -1
-
-            temp = env.getP2().state
-
-            if type(temp) != str:
-                #if temp.equals(env.getP2().gateway.jvm.enumerate.State.DOWN):
-                if temp.equals(env.getP2().gateway.jvm.enumerate.State.DOWN) and temp != prev_opp_state:
-                    print(temp)
-                    print('---')
-                    reward += 1000
-            prev_opp_state = temp 
-
-            #if next_state[68] < 0.5:
-            #    print(next_state)
-
-            #if next_state[82] > 0.9:
-            #    print("Opponenet downed")
+            # Update opponent's last state
+            prev_state = state
+            prev_opp_state = opp_state
 
             total_reward += reward
-            memory.push(state, action, next_state, reward, done)
+            memory.push(state, action, next_state, reward, done, agent)
             state = next_state
 
             agent.learn(memory, batch_size)
@@ -203,7 +254,9 @@ def main():
                 state = env.reset(p2=KickAI)
 
         print("Total reward: " + str(total_reward))
-        print("Memory size: " + str(len(memory)))
+
+    # Save this model
+    agent.save('./checkpoint.pt')
 
     env.close()
     exit()

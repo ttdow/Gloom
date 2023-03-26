@@ -16,246 +16,260 @@ import torch
 from classifier import Classifier
 from DNN import DNN
 
-def save_training_data(trainX, trainY):
-    # Save the training data collected
-    ID = str(uuid4())
-    #print("Round ended. Saving data with ID: ", ID)
+class Agent():
+    def __init__(self, n_obs, n_act):
+        self.n_obs = n_obs
+        self.n_act = n_act
 
-    # Set up the arrays to be saved
-    final_train_X = np.array(trainX, dtype=np.float64)
+        self.device = torch.device("cuda:0 " if torch.cuda.is_available() else "cpu")
+        self.model = DNN().to(self.device)
 
-    final_train_Y = np.array(trainY, dtype=np.int32)
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=1e-3)
+        self.loss_fn = torch.nn.SmoothL1Loss()
+        self.gamma = 0.99
 
-    #print("Skill: ", final_train_Y[0])
-    #print("Train X Shape: ", final_train_X.shape)
-    #print("Train Y Shape: ", final_train_Y.shape)
-
-    #print(final_train_Y[1])
-
-    X_file = "trainX-" + ID
-    Y_file = "trainY-" + ID
-
-    # Save the files
-    #cwd = os.getcwd()
-    if not os.path.exists('training_data'):
-        os.makedirs('training_data')
-    #os.chdir(cwd + "\\training_data")
-
-    # Save training data
-    np.save(os.path.join('training_data', X_file), final_train_X, allow_pickle=True)
-    np.save(os.path.join('training_data', Y_file), final_train_Y, allow_pickle=True)
-
-    #os.chdir(cwd)
-
-def training_episodes(model, env, action_strs, action_vecs, epsilon):
-    NUM_ROUNDS = 3
-    NUM_STEPS = 500
-    round = 1
-
-    DRIVER_ONEHOTS = [[1,0,0], [0,1,0], [0,0,1]]
-
-    # First one casues issues for some reason
-    obs = env.reset()
-    obs = obs[0]
-
-    while True:
-
-        # Initialize round
-        obs = env.reset()
-        done = False
-
-        # Training data
-        trainX = []
-        rewards = []
-
-        steps = 0
-
-        driver = randint(0, 2)
-
-        while not done:
-            if type(obs) != np.ndarray:
-                print("Oopsie")
-                action = 0
-                obs, reward, done, _ = env.step(action)
-
-            steps += 1
-
-            # Get next action
-            action = 0
-            if random.random() < epsilon: # Explore
-                action = random.randint(0, 55)
-            else:                         # Exploit
-                action = 0
-                best_val = float("-inf")
-                for a in range(len(action_strs)):
-                    act_vector = action_vecs[action_strs[a]]
-                    t_obs = torch.from_numpy(obs).float()
-                    t_act = torch.from_numpy(act_vector).float()
-                    input = torch.cat((t_obs, t_act))
-                    pred = model.forward(input)
-
-                    if pred > best_val:
-                        action = a
-                        best_val = pred
-
-                #print("Best action = ", action)
-
-            # Collect training data
-            trainX.append(np.concatenate((obs, action_vecs[action_strs[action]])))
-            rewards.append(DRIVER_ONEHOTS[driver])
-
-            # Do action
-            new_obs, reward, done, _ = env.step(action)
-
-            # Update observation
-            obs = new_obs
-
-            if done:
-                save_training_data(trainX, rewards)
-                round += 1
-
-        if round > NUM_ROUNDS:
-            break
-
-    return env
-
-def classifier_training_data(clear=False):
-    # Extract the training data files in the train_data folder.
-    # If clear is set to true, delete the data files after
-    # extracting info (helpful for running a LOT of games).
-    
-    trainX_files = []
-    trainY_files = []
-
-    # Save initial working directory
-    #py_directory = os.getcwd()
-
-    #os.chdir(py_directory + "\\training_data")
-    if not os.path.exists('training_data'):
-        os.makesirs('training_data')
-    files = os.listdir('training_data')
-
-    for f in files:
-        if f.startswith("trainX"):
-            trainX_files.append(f)
-        elif f.startswith("trainY"):
-            trainY_files.append(f)
-
-    trainX_files.sort()
-    trainY_files.sort()
-
-    x_init = True
-    y_init = True
-    trainX = None
-    trainY = None
-
-    for xfile in trainX_files:
-        if x_init:
-            trainX = np.load(os.path.join('training_data', xfile))
-            x_init = False
+    def act_not_training(self, state, epsilon):
+        action = 0
+        if torch.rand(1)[0] < epsilon:
+            action = 29
         else:
-            x = np.load(os.path.join('training_data', xfile))
-            trainX = np.concatenate((trainX, x))
+            action = 25
 
-    #print(trainX.shape)
-    #print(trainX[0][0])
+        return action
 
-    for yfile in trainY_files:
-        if y_init:
-            trainY = np.load(os.path.join('training_data', yfile))
-            y_init = False
+    def act(self, state, epsilon):
+
+        action = 0
+
+        # Explore
+        if torch.rand(1)[0] < epsilon:  
+            action = torch.tensor([np.random.choice(range(self.n_act))]).item()
+        # Exploit
         else:
-            y = np.load(os.path.join('training_data', yfile))
-            trainY = np.concatenate((trainY, y))
+            # Check for weird edge case       
+            if type(state) != np.ndarray:
+                state = state[0]
 
-    #print(trainY)
-    #print(trainY.shape)
+            # Convert state data to tensor
+            state = torch.FloatTensor(state).unsqueeze(0).to(self.device)
 
-    trainX = np.split(trainX, np.size(trainX, axis=0), axis=0)
+            # Calculate Q-values of actions given state
+            q_values = self.model(state)
 
-    for i in range(len(trainX)):
-        trainX[i] = np.squeeze(trainX[i])
+            # Get the best action as determined by the Q-values
+            best_q_value = torch.argmax(q_values)
+            action = best_q_value.item()
 
-    #print(trainX[0].shape, "trainX shape")
-
-    trainY = np.split(trainY, np.size(trainY, axis=0), axis=0)
-
-    for i in range(len(trainY)):
-        trainY[i] = np.squeeze(trainY[i])
-
-    #print(len(trainY))
-    #print(trainY[0].shape)
-
-    # Cleanup the replays if requested
-    if clear:
-        for f in files:
-            os.remove(os.path.join('training_data', f))
-
-    # Revert back to initial working diretory
-    #os.chdir(py_directory)
-
-    return trainX, trainY
-
-def generate_reward(classifier, skill, trainX, num_skills):
-    trainY = []
-
-    # Pass state observations to discriminator to classify
-    trainX = torch.FloatTensor(trainX)
-    pred = classifier.forward(trainX)
-
-    for p in pred:
-        trainY.append(np.log(p[skill].detach().numpy()) - 
-                      np.log(1/num_skills))
-
-    # Data shuffling
-    trainY = np.array(trainY)
-    trainY = np.expand_dims(trainY, 1)
-
-    return trainY
-
-def train_model(model, name, trainX, trainY):
-    cwd = os.getcwd()
-    if not os.path.exists(os.path.join(cwd, 'models', name)):
-        os.makedirs(os.path.join(cwd, 'models', name))
-    #os.chdir(cwd + "\\models\\" + name)
+        return action
     
-    print(type(trainX)) # list
+    def learn(self, memory, batch_size):
 
-    #model.forward(trainX)
+        # Ensure their are enough memories for a batch
+        if len(memory) < batch_size:
+            return
+        
+        # Sample a random batch of memories
+        states, actions, next_states, rewards, dones = memory.sample(batch_size)
 
-def train_DIAYN(name, num_skills, clear=False):
+        # Convert states from tuples of tensors to multi-dimensional tensors
+        states = torch.stack(states, dim=0)
+        next_states = torch.stack(next_states, dim=0)
 
-    # Extract training data
-    trainX, class_trainY = classifier_training_data(True)
+        # Give the DNN the batch of states to generate Q-values
+        q_values = self.model(states) 
+        next_q_values = self.model(next_states)
 
-    # For each skill, we generate our trainY then train
-    for skill in range(num_skills):
+        # Convert tuples to 2D tensors to work with batched states data
+        rewards = torch.tensor(list(rewards)).unsqueeze(1)
+        dones = torch.tensor(list(dones)).unsqueeze(1)
 
-        # Load classifier
-        classifier = Classifier("DIAYN\\Classifier " + str(num_skills), num_skills)
+        # Use Bellman equation to determine optimal action values
+        expected_q_values = rewards + (self.gamma * next_q_values * (1 - dones.long()))
 
-        # Generate reward
-        trainY = generate_reward(classifier, skill, trainX, num_skills)
+        # Calculate loss from optimal actions and taken actions
+        loss = self.loss_fn(q_values, expected_q_values)
 
-        # Load skill and train
-        n = "DIAYN\\Skill " + str(skill + 1)
-        model = DNN()
-        train_model(model, n, trainX, trainY)
+        # Optimize
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
+
+    def save(self, file):
+        checkpoint = {'model': self.model.state_dict(),
+                      'optimizer': self.optimizer.state_dict()}
+        torch.save(checkpoint, file)
+
+    def load(self, file):
+        checkpoint = torch.load(file, map_location=self.device)
+        self.model.load_state_dict(checkpoint['model'])
+        self.optimizer.load_state_dict(checkpoint['optimizer'])
+
+class ReplayMemory():
+    def __init__(self, capacity):
+        self.capacity = capacity
+        self.memory = []
+        self.position = 0
+
+    def __len__(self) -> int:
+        return len(self.memory)
+
+    def push(self, state, action, next_state, reward, done, agent):
+        
+        # Make more room in memory if needed
+        if len(self.memory) < self.capacity:
+            self.memory.append(None)
+
+        # Not sure why this happens        
+        if type(state) != np.ndarray:
+                state = state[0]
+
+        # Convert data from ndarray to tensor for ease of use
+        state = torch.from_numpy(state).float().to(agent.device)
+        next_state = torch.from_numpy(next_state).float().to(agent.device)
+
+        # Save a new memory to circular buffer
+        self.memory[self.position] = (state, action, next_state, reward, done)
+
+        # Cycle through circular buffer
+        self.position = (self.position + 1) % self.capacity
+
+    def sample(self, batch_size):
+
+        # Grab <batch_size> random samples of memories
+        batch = random.sample(self.memory, batch_size)
+
+        # Zip the unpacked sample of memories
+        states, actions, next_states, rewards, dones = zip(*batch)
+
+        return states, actions, next_states, rewards, dones
+
+def calc_reward(env, env_state, action, next_env_state, prev_opp_state, opp_state):
+
+    reward = 0
+
+    if type(env_state) != np.ndarray:
+        env_state = env_state[0]
+
+    #print(env_state[92:97])
+
+    #print(type(env_state))
+    #print(env_state.shape)
+
+    playerX = env_state[2]
+    opponentX = env_state[67]
+
+    #print(env_state[65])
+    #print(env_state[65] - prev_state[65])
+
+    #print("Player X: " + str(playerX))
+    #print("Opponent X: " + str(opponentX))
+    dist = abs(playerX - opponentX) * 960
+    #print("Distance: " + str(int(dist)))
+
+    if type(opp_state) != str:
+        if opp_state.equals(env.getP2().gateway.jvm.enumerate.State.DOWN) and opp_state != prev_opp_state:
+            #print(opp_state)
+            #print('---')
+            reward += 1000
+
+    return reward
 
 def main():
+
+    # Check for checkpoint to load - CLI syntax: py neutral.py <filepath>
+    # Model saves automatically at the end of n_episodes (hyperparameter below)
+    # Can change file output name at the bottom of this function
+    file = ""
+    if (len(sys.argv) > 1):
+        file = str(sys.argv[1])
+
+    # Setup action space
     _actions = "AIR AIR_A AIR_B AIR_D_DB_BA AIR_D_DB_BB AIR_D_DF_FA AIR_D_DF_FB AIR_DA AIR_DB AIR_F_D_DFA AIR_F_D_DFB AIR_FA AIR_FB AIR_GUARD AIR_GUARD_RECOV AIR_RECOV AIR_UA AIR_UB BACK_JUMP BACK_STEP CHANGE_DOWN CROUCH CROUCH_A CROUCH_B CROUCH_FA CROUCH_FB CROUCH_GUARD CROUCH_GUARD_RECOV CROUCH_RECOV DASH DOWN FOR_JUMP FORWARD_WALK JUMP LANDING NEUTRAL RISE STAND STAND_A STAND_B STAND_D_DB_BA STAND_D_DB_BB STAND_D_DF_FA STAND_D_DF_FB STAND_D_DF_FC STAND_F_D_DFA STAND_F_D_DFB STAND_FA STAND_FB STAND_GUARD STAND_GUARD_RECOV STAND_RECOV THROW_A THROW_B THROW_HIT THROW_SUFFER"
     action_strs = _actions.split(" ")
-    action_vecs = {}
+    action_vecs = []
 
+    # Onehot encoding for actions
     for i in range(len(action_strs)):
         v = np.zeros(len(action_strs), dtype=np.float32)
         v[i] = 1
-        action_vecs[action_strs[i]] = v
-    
-    print("Action space length", len(action_vecs))
+        action_vecs.append(v)
 
+    # Setup observation space
     env = gym.make("FightingiceDataNoFrameskip-v0", java_env_path="", port=4242, freq_restart_java=100000)
-    state = env.reset(p2 = WakeUp)
+    state = env.reset(p2=WakeUp)
+
+    # Setup epsilon values for explore/exploit calcs
+    EPSILON_MAX = 0.95
+    EPSILON_DECAY = 0.99999975
+    EPSILON_MIN = 0.05
+    epsilon = EPSILON_MAX
+
+    # Initialize agent and experience replay memory
+    agent = Agent(state.shape[0], len(action_vecs))
+    memory = ReplayMemory(50000)
+
+    # Load model if it exists
+    if file != "":
+        agent.load(file)
+        print("Model: " + file + " loaded.")
+
+    # Hyperparameters
+    batch_size = 128
+    n_episodes = 100
+    n_rounds = 3
+
+    # Flag for round finished
+    done = False
+
+    #Training loop
+    for episode in range(n_episodes):
+        state = env.reset(p2 = WakeUp)
+        round = 0
+        total_reward = 0
+
+        prev_opp_state = -1
+        prev_player_state = -1
+        opp_state = -1
+            
+        while round < n_rounds:
+
+            action = agent.act(state, epsilon)
+            next_state, reward, done, _ = env.step(action)
+
+            #print(dir(env.getP2()))
+            #exit()
+            print(env.getP2().WakeUp)
+            opp_state = env.getP2().state
+            #if type(opp_state) != str:
+            #    if opp_state.equals(env.getP2().gateway.jvm.enumerate.State.DOWN) and opp_state != prev_opp_state:
+            #        print(opp_state)
+            #print(state[65] - prev_state[65])
+            # Get opponent's current state from env (STAND, CROUCH, AIR, DOWN)
+
+            #if len(state) == 143 and len(prev_state) == 143:
+            #    print(prev_state[65] - state[65])
+
+            calc_reward(env, state, action, next_state, prev_opp_state, opp_state)
+
+            # Update opponent's last state
+            prev_state = state
+            prev_opp_state = opp_state
+
+            total_reward += reward
+            memory.push(state, action, next_state, reward, done, agent)
+            state = next_state
+
+            agent.learn(memory, batch_size)
+
+            epsilon = max(epsilon * EPSILON_DECAY, EPSILON_MIN)
+
+            if done:
+                round += 1
+                state = env.reset(p2=KickAI)
+
+        print("Total reward: " + str(total_reward))
+
+    agent.save ('./oki_checkpoint.pt')
 
     env.close()
     exit()
