@@ -4,6 +4,7 @@ from random import randint
 import sys
 import time
 import pandas as pd
+import matplotlib.pyplot as plt
 
 import torch
 import gym
@@ -62,9 +63,9 @@ def GetDistance(env_state):
 
     return int(dist)
 
-def calc_reward(env, env_state, action, next_env_state, prev_opp_state, opp_state):
+def calc_reward(env, env_state, action, next_env_state, prev_opp_state, opp_state, done):
 
-    reward = 0
+    reward = -1
 
     # Ensure the environment state is in the correct format
     if type(env_state) != np.ndarray:
@@ -100,7 +101,7 @@ def calc_reward(env, env_state, action, next_env_state, prev_opp_state, opp_stat
         # Mid range / Footsie range
         # Just beyond the reach of your opponent's pokes and normals, but within jump-in range
         # Purposefully move in and out of your opponent's attack range to bait
-        reward += 1     # Small reward for being in mid
+        reward += 0     # Small reward for being in mid
 
     elif dist <= 500:
         # Far range
@@ -108,10 +109,26 @@ def calc_reward(env, env_state, action, next_env_state, prev_opp_state, opp_stat
         reward += 0
 
     playerX = env_state[2]
-    if playerX < 200 or playerX > 760:
-        # Full screen
-        # Be wary of corner
-        reward -= 10    # Penalize for being in the corner
+    opponentX = env_state[67]
+    
+    # Full screen
+    # Be wary of corner
+    if playerX < 100:
+        if opponentX < playerX:
+            reward += 25    # Bonus for pinning opponent in corner
+        else:
+            reward -= 25    # Malus for being pinned
+    elif playerX > 860:
+        if opponentX > playerX:
+            reward += 25    # Bonus for pinning opponent in corner
+        else:
+            reward -= 25    # Malus for being pinned
+
+    # ---------------------- Bonus for winning --------------------------------
+    player_HP = env_state[0]
+    opponent_HP = env_state[65]
+    if done == 1 and player_HP > opponent_HP:
+        reward += 500
 
     return reward
    
@@ -150,16 +167,16 @@ def main():
 
     # Initialize agent and experience replay memory
     agent = Agent(state.shape[0], len(action_vecs))
-    memory = ReplayMemory(50000)
+    memory = ReplayMemory(100000)
 
     # Load model if it exists
     if file != "":
-        agent.load(file)
+        epsilon = agent.load(file)
         print("Model: " + file + " loaded.")
 
     # Hyperparameters
     batch_size = 128
-    n_episodes = 50
+    n_episodes = 100000
     n_rounds = 3
 
     # Flag for round finished
@@ -169,6 +186,8 @@ def main():
     frame_counter = 0
     accumulator = 0
     old_time = time.time()
+
+    rewards = []
 
     # Training loop
     for episode in range(n_episodes):
@@ -211,7 +230,7 @@ def main():
             # Get opponent's current state from env (STAND, CROUCH, AIR, DOWN)
             opp_state = env.getP2().state
 
-            reward = calc_reward(env, state, action, next_state, prev_opp_state, opp_state)
+            reward = calc_reward(env, state, action, next_state, prev_opp_state, opp_state, done)
 
             # Update opponent's last state
             prev_opp_state = opp_state
@@ -232,8 +251,17 @@ def main():
         print("Total reward: " + str(total_reward))
         print("Epsilon: " + str(epsilon))
 
-    # Save this model
-    agent.save('./checkpoint.pt')
+        rewards.append(total_reward)
+
+        if episode > 0 and episode % 50 == 0:
+            # Save this model
+            agent.save('./checkpoint.pt', epsilon)
+
+    plt.plot(agent.losses)
+    plt.show()
+
+    plt.plot(rewards)
+    plt.show()
 
     env.close()
     exit()

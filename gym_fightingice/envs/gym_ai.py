@@ -38,12 +38,12 @@ class GymAI(object):
         self.player = player
         self.gameData = gameData
         self.nonDelay = None
-        print("initialized")
+
         return 0
 
     # please define this method when you use FightingICE version 3.20 or later
     def roundEnd(self, x, y, z):
-        print("send round end to {}".format(self.pipe))
+        #print("send round end to {}".format(self.pipe))
         # send final reward
         if x > y: # win
             self.pipe.send([self.obs, 1000, True, None])
