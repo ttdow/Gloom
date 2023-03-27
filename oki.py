@@ -186,14 +186,15 @@ def main():
 
             state = next_state
 
-
             if done:
                 round += 1
-                state = env.reset(p2=KickAI)
+                state = env.reset(p2=WakeUp)
 
         print("Total reward: " + str(total_reward))
+        if episode > 0 and episode % 50 == 0:
+            agent.save('./oki_checkpiont.pt', epsilon)
 
-    agent.save('./oki_checkpoint.pt')
+    #agent.save('./oki_checkpoint.pt')
 
     env.close()
     exit()
