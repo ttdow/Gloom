@@ -1,9 +1,8 @@
 import numpy as np
 from py4j.java_gateway import get_field
 
-
 class GymAI(object):
-    def __init__(self, gateway, pipe, frameskip=True):
+    def __init__(self, gateway, pipe, frameskip=False):
         self.gateway = gateway
         self.pipe = pipe
 
@@ -25,7 +24,8 @@ class GymAI(object):
         self.last_self_HP = 100
         self.counter_hit = False
         self.frame = 0
-        #self.reward_calls = 0
+
+        self.opponentState = None
 
     def close(self):
         pass
@@ -78,22 +78,36 @@ class GymAI(object):
     def gameEnd(self):
         pass
 
+    def getOpponentState(self):
+        return self.opponentState
+
     def processing(self):
         try:
             self.frame += 1
-            #print("frame data", type(self.frameData), "nondelay", type(self.nonDelay))
+
+            # Update player observation every frame
+            opp = self.frameData.getCharacter(not self.player)
+            if opp != None:
+                self.opponentState = opp.getState()
+
+            # Check if frame data is empty or the round is over 
             if self.frameData.getEmptyFlag() or self.frameData.getRemainingTime() <= 0:
                 self.isGameJustStarted = True
                 return
 
             if True:
+                # Check whether there are unexecuted keys in the list of keys waiting to be executed
                 if self.cc.getSkillFlag():
                     self.inputKey = self.cc.getSkillKey()
                     return
+                
+                # Checks whether the player is hitting the opponent?
                 if self.frameData.getCharacter(self.player).isHitConfirm():
                     oppo_act = str(self.pre_framedata.getCharacter(not self.player).getAction())
                     if oppo_act in self.interupt_actions:
                         self.counter_hit = True
+
+                # Can only assume this means the player is able to enter inputs currently
                 if not self.isControl:
                     return
 
@@ -109,11 +123,13 @@ class GymAI(object):
                     self.pipe.send(self.obs)
                 else:
                     raise ValueError
+                
             # if not just inited but self.obs is none, it means second/thrid round just started
             # should return only obs for reset()
             elif self.obs is None:
                 self.obs = self.get_obs()
                 self.pipe.send(self.obs)
+
             # if there is self.obs, do step() and return [obs, reward, done, info]
             else:
                 self.obs = self.get_obs()
@@ -122,6 +138,7 @@ class GymAI(object):
 
             #print("waitting for step in {}".format(self.pipe))
             request = self.pipe.recv()
+
             #print("get step in {}".format(self.pipe))
             if len(request) == 2 and request[0] == "step":
                 action = request[1]
@@ -131,97 +148,14 @@ class GymAI(object):
                     self.cc.commandCall(action)
                 if not self.frameskip:
                     self.inputKey = self.cc.getSkillKey()
+
         except Exception as e:
             print("EXCEPTION IN GYM AI")
             print(e.args)
             return
-
+        
     def get_reward(self):
-        # swap reward function here as needed
-        try:
-            if self.pre_framedata.getEmptyFlag() or self.frameData.getEmptyFlag():
-                print("empty reward")
-                reward = 0
-            else:
-                reward = self.diayn_reward()
-        except Exception as e:
-            reward = e
-        return reward
-
-    def rushdown_reward(self):
-        # reward function for rushdown
-        reward = 0
-        np1 = self.frameData.getCharacter(self.player)
-        np2 = self.frameData.getCharacter(not self.player)
-
-        x_pos_max = self.gameData.getStageWidth()
-        player_pos = np1.getCenterX() / x_pos_max
-        enemy_pos = np2.getCenterX() / x_pos_max
-
-        player_hit = False
-        if self.last_opponent_HP > np2.getHp():
-            player_hit = True
-            #print("positive reward! on frame", self.frame)
-            self.last_opponent_HP = np2.getHp()
-
-        enemy_hit = False
-
-        if player_hit:
-            #print("positive reward!")
-            reward += 100
-        
-        # penalty
-        reward -= 1
-
-        return reward
-    
-    def balanced_reward(self):
-        reward = 0
-        np1 = self.frameData.getCharacter(self.player)
-        np2 = self.frameData.getCharacter(not self.player)
-
-        enemy_hit = False
-
-        # determine if enemy has hit
-        if self.last_self_HP > np1.getHp():
-            enemy_hit = True
-            self.last_self_HP = np1.getHp()
-
-        player_hit = False
-        if self.last_opponent_HP > np2.getHp():
-            player_hit = True
-            #print("positive reward! on frame", self.frame)
-            self.last_opponent_HP = np2.getHp()
-        
-        # getting hit penalty
-        if enemy_hit:
-            reward -= 50
-
-        # giving hit penalty
-        if player_hit:
-            reward += 100
-
-        # penalty
-        reward -= 1
-        return reward
-    
-    def counter_reward(self):
-        reward = 0
-        np1 = self.frameData.getCharacter(self.player)
-        np2 = self.frameData.getCharacter(not self.player)
-        if self.counter_hit:
-            reward += 100
-
-        # penalty    
-        reward -= 1
-
-        # reset counter
-        self.counter_hit = False
-
-        return reward
-
-    def diayn_reward(self):
-        return 0
+        pass
 
     def get_obs(self):
         my = self.frameData.getCharacter(self.player)
@@ -289,14 +223,16 @@ class GymAI(object):
         else:
             observation.append(1)
         observation.append(abs(oppSpeedY))
+
         for i in range(56):
             if i == oppState:
                 observation.append(1)
             else:
                 observation.append(0)
+
         observation.append(oppRemainingFrame)
 
-        # time information
+        # Time information
         observation.append(game_frame_num)
 
         myProjectiles = self.frameData.getProjectilesByP1()
@@ -368,6 +304,7 @@ class GymAI(object):
 
         observation = np.array(observation, dtype=np.float64)
         observation = np.clip(observation, 0, 1)
+
         return observation
 
     # This part is mandatory

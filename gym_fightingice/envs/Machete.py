@@ -15,9 +15,6 @@ class Machete(object):
 		
   # please define this method when you use FightingICE version 3.20 or later
   def roundEnd(self, x, y, z):
-    #print(x)
-    #print(y)
-    #print(z)
     return
 
   # please define this method when you use FightingICE version 4.00 or later
@@ -41,6 +38,7 @@ class Machete(object):
     return self.inputKey
 
   def processing(self):
+
     # First we check whether we are at the end of the round
     if self.frameData.getEmptyFlag() or self.frameData.getRemainingFramesNumber() <= 0:
       self.isGameJustStarted = True
@@ -70,7 +68,7 @@ class Machete(object):
     opp = self.frameData.getCharacter(not self.player)
     opp_x = opp.getX()
     opp_state = opp.getState()
-    
+
     xDifference = my_x - opp_x
     
     if self.cc.getSkillFlag():

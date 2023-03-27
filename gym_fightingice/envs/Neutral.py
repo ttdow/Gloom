@@ -1,18 +1,9 @@
 from py4j.java_gateway import get_field
 
-import sys
-sys.path.append('../../')
-
-from Agent import Agent
-
-class MirrorAI(object):
+class Neutral(object):
   def __init__(self, gateway):
     self.gateway = gateway
     self.state = "STAND"
-
-  def initAgent(self, state_space, action_space):
-    self.agent = Agent(state_space, action_space)
-    self.agent.load("./checkpoint.pt")
 
   def close(self):
     pass
@@ -24,7 +15,7 @@ class MirrorAI(object):
 		
   # please define this method when you use FightingICE version 3.20 or later
   def roundEnd(self, x, y, z):
-    pass
+    return
 
   # please define this method when you use FightingICE version 4.00 or later
   def getScreenData(self, sd):
@@ -35,14 +26,10 @@ class MirrorAI(object):
     self.inputKey = self.gateway.jvm.struct.Key()
     self.frameData = self.gateway.jvm.struct.FrameData()
     self.cc = self.gateway.jvm.aiinterface.CommandCenter()
-
     self.player = player
     self.gameData = gameData
-
     self.simulator = self.gameData.getSimulator()
-
     self.isGameJustStarted = True
-
     return 0
 
   def input(self):
@@ -50,25 +37,22 @@ class MirrorAI(object):
     # which is modified in the processing part
     return self.inputKey
 
-  def getState(self):
-    my = self.frameData.getCharacter(self.player)
-
   def processing(self):
+
+    print(self.frameData.getCharacter(self.player))
+
     # First we check whether we are at the end of the round
     if self.frameData.getEmptyFlag() or self.frameData.getRemainingFramesNumber() <= 0:
       self.isGameJustStarted = True
       return
   
     if not self.isGameJustStarted:
-      
       # Simulate the delay and look ahead 2 frames. The simulator class exists already in FightingICE
       self.frameData = self.simulator.simulate(self.frameData, self.player, None, None, 17)
-
       #You can pass actions to the simulator by writing as follows:
       #actions = self.gateway.jvm.java.util.ArrayDeque()
       #actions.add(self.gateway.jvm.enumerate.Action.STAND_A)
       #self.frameData = self.simulator.simulate(self.frameData, self.player, actions, actions, 17)
-
     else:
       # If the game just started, no point on simulating
       self.isGameJustStarted = False
@@ -86,14 +70,13 @@ class MirrorAI(object):
     opp = self.frameData.getCharacter(not self.player)
     opp_x = opp.getX()
     opp_state = opp.getState()
-    
+
     xDifference = my_x - opp_x
     
     if self.cc.getSkillFlag():
       # If there is a previous "command" still in execution, then keep doing it
       self.inputKey = self.cc.getSkillKey()
       return
-    
     # We empty the keys and cancel skill just in case
     self.inputKey.empty()
     self.cc.skillCancel()
@@ -135,8 +118,6 @@ class MirrorAI(object):
     else:
       # Perform a kick in all other cases, introduces randomness
       self.cc.commandCall("B")
-    self.cc.commandCall("B")
 
-  # This is required
   class Java:
     implements = ["aiinterface.AIInterface"]

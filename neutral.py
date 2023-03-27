@@ -5,13 +5,15 @@ import sys
 import time
 import pandas as pd
 import matplotlib.pyplot as plt
+import gc
 
 import torch
 import gym
 
 from Agent import Agent
-from gym_fightingice.envs.MirrorAI import MirrorAI
+#from gym_fightingice.envs.MirrorAI import MirrorAI
 from gym_fightingice.envs.Machete import Machete
+from gym_fightingice.envs.Neutral import Neutral
 
 class ReplayMemory():
     def __init__(self, capacity):
@@ -101,7 +103,7 @@ def calc_reward(env, env_state, action, next_env_state, prev_opp_state, opp_stat
         # Mid range / Footsie range
         # Just beyond the reach of your opponent's pokes and normals, but within jump-in range
         # Purposefully move in and out of your opponent's attack range to bait
-        reward += 0     # Small reward for being in mid
+        reward += 0
 
     elif dist <= 500:
         # Far range
@@ -141,6 +143,10 @@ def main():
     if (len(sys.argv) > 1):
         file = str(sys.argv[1])
 
+    # Disable the garbage collector for more consistent frame times
+    gc.collect()
+    gc.disable()
+
     # Read frame data from csv
     framedata = pd.read_csv("./data/characters/ZEN/Motion.csv")
 
@@ -157,6 +163,7 @@ def main():
 
     # Setup observation space
     env = gym.make("FightingiceDataNoFrameskip-v0", java_env_path="", port=4242, freq_restart_java=100000)
+
     state = env.reset(p2=Machete)
 
     # Setup epsilon values for explore/exploit calcs
@@ -175,7 +182,7 @@ def main():
         print("Model: " + file + " loaded.")
 
     # Hyperparameters
-    batch_size = 128
+    batch_size = 256
     n_episodes = 100000
     n_rounds = 3
 
@@ -187,66 +194,83 @@ def main():
     accumulator = 0
     old_time = time.time()
 
+    # Initialize reward log
     rewards = []
 
-    # Training loop
+    # Frame data cache
+    frame_cache = [[]] * 15
+
+    # Training loop - loop until n_episodes are complete
     for episode in range(n_episodes):
 
+        # Reset env for next episode
         state = env.reset(p2=Machete)
         round = 0
         total_reward = 0
 
+        # Reset opponent's state for next episode
         prev_opp_state = -1
+
+        # Round timing data
+        old_time = time.time()
+
+        # Loop until n_rounds are complete
         while round < n_rounds:
-            
-            # Calculate time since last frame
-            new_time = time.time()
-            dt = new_time - old_time
-            old_time = new_time
 
             # Track frame rate
-            accumulator += dt
-            if accumulator > 1.0:
-                frame_counter = 0
-                accumulator = 0
-            
             frame_counter += 1
 
             # Ensure the environment state is in the correct format
             if type(state) != np.ndarray:
                 state = state[0]
 
+            # Get the next action
             action = agent.act(state, epsilon)
 
-            # Testing attack distances
-            #dist = GetDistance(state)
-            #if (dist <= 240):
-            #    action = 48
-            #else:
-            #    action = 32
-
+            # Step the environment with the selected action
             next_state, reward, done, _ = env.step(action)
 
             # Get opponent's current state from env (STAND, CROUCH, AIR, DOWN)
             opp_state = env.getP2().state
+            p2 = env.getP2()
 
+            # Calculate reward function based on states and action
             reward = calc_reward(env, state, action, next_state, prev_opp_state, opp_state, done)
 
             # Update opponent's last state
             prev_opp_state = opp_state
 
+            # Save total reward for the episode for logging
             total_reward += reward
+
+            # Add the last state, action transition to the agent's memory cache
             memory.push(state, action, next_state, reward, done, agent)
+
+            # Update the state for next frame
             state = next_state
 
-            agent.learn(memory, batch_size)
-
+            # Update epsilon for next frame
             epsilon = max(epsilon * EPSILON_DECAY, EPSILON_MIN)
 
+            #end_time = time.time()
+            #print("everything else dt = " + str((end_time - start_time) * 1000.0))
+
+            # Check if round is complete
             if done:
+                
+                # Calculate average frame rate of round
+                new_time = time.time()
+                dt = new_time - old_time
+                print(str(frame_counter) + " frames / " + str(dt) + " (FPS: " + str(frame_counter / dt) + ")")
+                old_time = new_time
+                frame_counter = 0
+
+                # Update Q-values in a batch
+                agent.learn(memory, batch_size)
+
+                # Setup for the next round
                 round += 1
                 state = env.reset(p2=Machete)
-                frame_counter = 0
 
         print("Total reward: " + str(total_reward))
         print("Epsilon: " + str(epsilon))
@@ -256,6 +280,12 @@ def main():
         if episode > 0 and episode % 50 == 0:
             # Save this model
             agent.save('./checkpoint.pt', epsilon)
+
+        # Force garbage collection between episodes
+        gc.collect()
+
+    # Re-enable garbage collection
+    gc.enable()
 
     plt.plot(agent.losses)
     plt.show()
