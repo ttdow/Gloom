@@ -11,6 +11,8 @@ from gym_fightingice.envs.Machete import Machete
 from gym_fightingice.envs.KickAI import KickAI
 from gym_fightingice.envs.WakeUp import WakeUp
 
+import matplotlib.pyplot as plt
+
 import torch 
 
 from classifier import Classifier
@@ -132,6 +134,8 @@ def main():
     n_episodes = 100
     n_rounds = 3
 
+    rewards = []
+
     # Flag for round finished
     done = False
 
@@ -142,6 +146,7 @@ def main():
         state = env.reset(p2 = WakeUp)
         round = 0
         total_reward = 0
+
 
         prev_opp_state = -1
         prev_player_state = -1
@@ -191,8 +196,17 @@ def main():
                 state = env.reset(p2=WakeUp)
 
         print("Total reward: " + str(total_reward))
+
+        rewards.append(total_reward)
         if episode > 0 and episode % 50 == 0:
             agent.save('./oki_checkpiont.pt', epsilon)
+        
+    
+    plt.plot(agent.losses)
+    plt.show()
+
+    plt.plot(rewards)
+    plt.show()
 
     #agent.save('./oki_checkpoint.pt')
 

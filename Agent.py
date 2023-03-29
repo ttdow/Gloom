@@ -1,5 +1,6 @@
 import torch
 import numpy as np
+import time
 
 from DNN import DNN
 
@@ -12,6 +13,9 @@ class Agent():
         self.device = torch.device("cuda:0 " if torch.cuda.is_available() else "cpu")
         self.model = DNN().to(self.device)
 
+        self.target = DNN().to(self.device) # Used for calculating target Q-values during training
+        self.policy = DNN().to(self.device) # Used for calculating Q-values and selecting actions
+
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=1e-3)
         self.loss_fn = torch.nn.MSELoss()
         self.gamma = 0.99
@@ -21,6 +25,8 @@ class Agent():
     def act(self, state, epsilon):
 
         action = 0
+
+        start_time = time.time()
 
         # Convert state data to tensor
         state = torch.FloatTensor(state).unsqueeze(0).to(self.device)
@@ -44,10 +50,10 @@ class Agent():
 
         # Print Q-values for testing
         # 2% chance to log Q-values (hacky version of periodic logging)
-        test_q_values = self.model(state).squeeze(0)
-        if torch.rand(1)[0] > 0.98:
-            print("Q(s, a) = " + str(test_q_values[action].item()))
-            print("maxQ(s, a) = " + str(test_q_values.max().item()))
+        #test_q_values = self.model(state).squeeze(0)
+        #if torch.rand(1)[0] > 0.98:
+            #print("Q(s, a) = " + str(test_q_values[action].item()))
+            #print("maxQ(s, a) = " + str(test_q_values.max().item()))
 
         return action
     

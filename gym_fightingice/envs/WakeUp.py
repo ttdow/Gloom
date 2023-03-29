@@ -44,13 +44,7 @@ class WakeUp(object):
     return self.inputKey
 
   def getState(self):
-    my = self.frameData.getCharacter(self.player)
-    print(self)
-    #print(type(my))
-
-    #my_x = my.getX()
-    #my_state = my.getState()
-    #return my_state
+    return self.state
 
   def processing(self):
     # First we check whether we are at the end of the round
@@ -77,6 +71,7 @@ class WakeUp(object):
     my_x = my.getX()
     my_state = my.getState()
     self.state = my_state
+    print(self.state)
     if self.state == self.prev_state:
         self.frameCount += 1
     else:
@@ -109,6 +104,7 @@ class WakeUp(object):
         if opp_state.equals(self.gateway.jvm.enumerate.State.AIR):
             self.cc.commandCall("STAND_F_D_DFA")
         else:
+            print('MASH')
             e = random.uniform(0,1)
             if e <= 0.5:
               self.cc.commandCall("A")

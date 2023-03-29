@@ -17,7 +17,6 @@ from gym_fightingice.envs.gym_ai import GymAI
 from gym_fightingice.envs.Machete import Machete
 from gym_fightingice.envs.RandomAI import RandomAI
 
-
 def game_thread(env):
     try:
         env.game_started = True
@@ -111,7 +110,7 @@ class FightingiceEnv_Data_NoFrameskip(gym.Env):
             if self.system_name == "windows":
                 # -Xms1024m -Xmx1024m we need set this in windows
                 self.java_env = subprocess.Popen(["java", "-Xms1024m", "-Xmx1024m", "-cp", self.start_up_str, "Main", "--port", str(self.port), "--py4j", "--fastmode",
-                                            "--grey-bg", "--inverted-player", "1", "--mute", "--limithp", "100", "100"], stdout=devnull, stderr=devnull)
+                                                "--inverted-player", "1", "-df", "--fastmode", "--limithp", "100", "100"], stdout=devnull, stderr=devnull)
             elif self.system_name == "linux":
                 self.java_env = subprocess.Popen(["java", "-cp", self.start_up_str, "Main", "--port", str(self.port), "--py4j", "--fastmode",
                                                 "--grey-bg", "--inverted-player", "1", "--mute", "--limithp", "100", "100"], stdout=devnull, stderr=devnull)
@@ -215,6 +214,7 @@ class FightingiceEnv_Data_NoFrameskip(gym.Env):
 
         self.pipe.send(["step", action])
         new_obs, reward, done, info = self.pipe.recv()
+
         return new_obs, reward, done, {}
 
     def render(self, mode='human'):
@@ -230,13 +230,14 @@ class FightingiceEnv_Data_NoFrameskip(gym.Env):
         return self.p2
 
 if __name__ == "__main__":
-    env = FightingiceEnv_Data_Frameskip()
+    
+    #env = FightingiceEnv_Data_Frameskip()
 
-    while True:
-        obs = env.reset()
-        done = False
+    #while True:
+        #obs = env.reset()
+        #done = False
 
-        while not done:
-            new_obs, reward, done, _ = env.step(random.randint(0, 10))
+        #while not done:
+           #new_obs, reward, done, _ = env.step(random.randint(0, 10))
 
     print("finish")
