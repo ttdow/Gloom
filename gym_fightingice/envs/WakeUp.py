@@ -4,7 +4,8 @@ import random
 class WakeUp(object):
   def __init__(self, gateway):
     self.gateway = gateway
-    self.state = "STAND"
+    #self.state = "STAND"
+    self.state = ""
 
   def close(self):
     pass
@@ -71,7 +72,7 @@ class WakeUp(object):
     my_x = my.getX()
     my_state = my.getState()
     self.state = my_state
-    print(self.state)
+    #print(self.state)
     if self.state == self.prev_state:
         self.frameCount += 1
     else:

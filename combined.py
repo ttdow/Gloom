@@ -229,31 +229,32 @@ def main():
             
             # Track frame rate
             frame_counter += 1
-
+            #print(env.getP2().gameData.wait(1))
             opp_state = env.getP2().getState()
-            print(opp_state)
+            #print(opp_state)
             if type(opp_state) != str and type(prev_opp_state) != str and type(opp_state) != int and type(prev_opp_state) != int:
                 if opp_state.equals(env.getP2().gateway.jvm.enumerate.State.DOWN) and oki == False:
                     oki = True
 
             if oki == True:
-                print('PERFORMING OKI')
+                #print('PERFORMING OKI')
                 action_count += 1
                 action = okiAgent.act(state, epsilon)
                 next_state, reward, done, _ = env.step(action)
                 reward = 0
                 if len(prev_state) == 143 and len(state) == 143:
                     reward = (opp_hp_weight * (prev_state[65] - state[65])) - (player_hp_weight * (prev_state[0] - state[0]))
-                print('reward: ', reward)
                 #total_reward += reward
                 memory.push(state, action, next_state, reward, done, okiAgent)
                 okiAgent.learn(memory, batch_size)
 
                 epsilon = max(epsilon * EPSILON_DECAY, EPSILON_MIN)
-                if action_count == 3:
-                    #print('TRAINING STOP')
+                if action_count == 60:
+                    print('reward: ', reward)
+                    print('OKI STOP')
                     oki = False
                     action_count = 0
+
             elif oki == False:
                 #print("NEUTRAL")
                 # Ensure the environment state is in the correct format

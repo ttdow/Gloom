@@ -95,7 +95,8 @@ class GymAI(object):
                 self.isGameJustStarted = True
                 return
 
-            if True:
+            #if True:
+            if False:
                 # Check whether there are unexecuted keys in the list of keys waiting to be executed
                 if self.cc.getSkillFlag():
                     self.inputKey = self.cc.getSkillKey()
