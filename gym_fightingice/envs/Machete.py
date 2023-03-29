@@ -2,6 +2,7 @@ from py4j.java_gateway import get_field
 
 class Machete(object):
   def __init__(self, gateway):
+
     self.gateway = gateway
     self.state = "STAND"
 
