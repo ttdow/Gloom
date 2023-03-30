@@ -169,7 +169,7 @@ def main():
 
     # Hyperparameters
     batch_size = 256
-    n_episodes = 100000
+    n_episodes = 10000
     n_rounds = 3
 
     # Flag for round finished
@@ -184,8 +184,6 @@ def main():
 
     # Training loop - loop until n_episodes are complete
     for episode in range(n_episodes):
-
-        print("Iterating episode loop.")
 
         # Reset env for next episode
         state = env.reset(p2=Machete)
@@ -252,13 +250,16 @@ def main():
                 round += 1
                 state = env.reset(p2=Machete)
 
+        print("Epsilon: " + str(epsilon))
+        print("Total Reward: " + str(total_reward))
+
         # Log total reward of episode for
         rewards.append(total_reward)
 
         # Save the model every 50 episodes
         if episode > 0 and episode % 50 == 0:
             # Save this model
-            agent.save('./checkpoint.pt', epsilon)
+            agent.save('./checkpoint.pt', epsilon, rewards)
 
         # Force garbage collection between episodes
         gc.collect()

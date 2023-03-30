@@ -10,7 +10,7 @@ class Agent():
         self.n_states = n_states
         self.n_actions = n_actions
 
-        self.device = torch.device("cuda:0 " if torch.cuda.is_available() else "cpu")
+        self.device = torch.device("cpu") #torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         self.model = DNN().to(self.device)
 
         self.target = DNN().to(self.device) # Used for calculating target Q-values during training
@@ -94,10 +94,12 @@ class Agent():
         loss.backward()
         self.optimizer.step()
 
-    def save(self, file, epsilon):
+    def save(self, file, epsilon, rewards, losses):
         checkpoint = {'model': self.model.state_dict(),
                       'optimizer': self.optimizer.state_dict(),
-                      'epsilon': epsilon}
+                      'epsilon': epsilon,
+                      'reward': rewards,
+                      'loss': self.losses}
         torch.save(checkpoint, file)
 
     def load(self, file):
