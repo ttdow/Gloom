@@ -155,7 +155,7 @@ def main():
             #exit()
             opp_state = env.getP2().state
             if type(opp_state) != str and type(prev_opp_state) != str and type(opp_state) != int and type(prev_opp_state) != int:
-                if opp_state.equals(env.getP2().gateway.jvm.enumerate.State.DOWN) and prev_opp_state.equals(env.getP2().gateway.jvm.enumerate.State.DOWN):
+                if opp_state.equals(env.getP2().gateway.jvm.enumerate.State.DOWN) and training == False;
                     #print('TRAINING START')
                     training = True
             #print(state [0], state[1], state[2]) 
@@ -173,7 +173,7 @@ def main():
                 agent.learn(memory, batch_size)
 
                 epsilon = max(epsilon * EPSILON_DECAY, EPSILON_MIN)
-                if action_count == 3:
+                if action_count == 60:
                     #print('TRAINING STOP')
                     training = False
                     action_count = 0

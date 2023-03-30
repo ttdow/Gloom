@@ -86,7 +86,7 @@ class GymAI(object):
                 self.isGameJustStarted = True
                 return
 
-            if True:
+            if False:
                 if self.cc.getSkillFlag():
                     self.inputKey = self.cc.getSkillKey()
                     return
