@@ -14,6 +14,7 @@ from py4j.java_gateway import (CallbackServerParameters, GatewayParameters,
 
 import gym_fightingice
 from gym_fightingice.envs.gym_ai import GymAI
+from gym_fightingice.envs.new_gym_ai import NewGymAI
 from gym_fightingice.envs.Machete import Machete
 from gym_fightingice.envs.RandomAI import RandomAI
 
@@ -110,7 +111,7 @@ class FightingiceEnv_Data_NoFrameskip(gym.Env):
             if self.system_name == "windows":
                 # -Xms1024m -Xmx1024m we need set this in windows
                 self.java_env = subprocess.Popen(["java", "-Xms1024m", "-Xmx1024m", "-cp", self.start_up_str, "Main", "--port", str(self.port), "--py4j", "--fastmode",
-                                                "--inverted-player", "1", "-df", "--fastmode", "--limithp", "100", "100"], stdout=devnull, stderr=devnull)
+                                                "--inverted-player", "1", "-df", "--mute", "--grey-bg", "-off", "--disable-window", "--limithp", "100", "100"], stdout=devnull, stderr=devnull)
             elif self.system_name == "linux":
                 self.java_env = subprocess.Popen(["java", "-cp", self.start_up_str, "Main", "--port", str(self.port), "--py4j", "--fastmode",
                                                 "--grey-bg", "--inverted-player", "1", "--mute", "--limithp", "100", "100"], stdout=devnull, stderr=devnull)
@@ -137,7 +138,7 @@ class FightingiceEnv_Data_NoFrameskip(gym.Env):
             # create pipe between gym_env_api and python_ai for java env
             server, client = Pipe()
             self.pipe = server
-            self.p1 = GymAI(self.gateway, client, False)
+            self.p1 = NewGymAI(self.gateway, client, False)
             self.manager.registerAI(self.p1.__class__.__name__, self.p1)
 
             if isinstance(p2, str):
@@ -151,6 +152,8 @@ class FightingiceEnv_Data_NoFrameskip(gym.Env):
                 self.manager.registerAI(self.p2.__class__.__name__, self.p2)
                 self.game_to_start = self.manager.createGame(
                     "ZEN", "ZEN", self.p1.__class__.__name__, self.p2.__class__.__name__, self.freq_restart_java)
+                print(self.p1.__class__.__name__)
+
             self.game = Thread(target=game_thread,
                             name="game_thread", args=(self, ))
             self.game.start()
@@ -205,6 +208,7 @@ class FightingiceEnv_Data_NoFrameskip(gym.Env):
             print(e)
 
     def step(self, action):
+
         # check if game is running, if not try restart
         # when restart, dict will contain crash info, agent should do something, it is a BUG in this version
         if self.game_started is False:
@@ -212,8 +216,14 @@ class FightingiceEnv_Data_NoFrameskip(gym.Env):
             dict["pre_game_crashed"] = True
             return self.reset(), 0, None, dict
 
+        #action = 1
         self.pipe.send(["step", action])
+
+        # Slow boy
+        #t0 = time.time()
         new_obs, reward, done, info = self.pipe.recv()
+        #t1 = time.time()
+        #print("dt = " + str((t1-t0)*1000.0))
 
         return new_obs, reward, done, {}
 

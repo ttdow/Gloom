@@ -1,20 +1,14 @@
 import numpy as np
-import random
-from random import randint
-import sys
 import time
-import pandas as pd
-import matplotlib.pyplot as plt
+import random
+import sys
 import gc
-import threading
 
 import torch
 import gym
 
 from Agent import Agent
 from gym_fightingice.envs.Machete import Machete
-from gym_fightingice.envs.Neutral import Neutral
-from gym_fightingice.envs.fightingice_env_twoplayer import FightingiceEnv_TwoPlayer
 
 class ReplayMemory():
     def __init__(self, capacity):
@@ -65,7 +59,7 @@ def GetDistance(env_state):
     dist = abs(playerX - opponentX) * 960
 
     return int(dist)
-
+    
 def calc_reward(env, env_state, action, next_env_state, prev_opp_state, opp_state, done):
 
     reward = -1
@@ -127,36 +121,8 @@ def calc_reward(env, env_state, action, next_env_state, prev_opp_state, opp_stat
         else:
             reward -= 25    # Malus for being pinned
 
-    # ---------------------- Bonus for winning --------------------------------
-    player_HP = env_state[0]
-    opponent_HP = env_state[65]
-    if done == 1 and player_HP > opponent_HP:
-        reward += 500
-
     return reward
 
-def play_thread(env):
-
-    print("play_thread() was called.")
-
-    obs = env.reset()
-
-    print()
-    print()
-    print()
-    print()
-    print()
-    print("Passed env.reset().")
-    print()
-    print()
-    print()
-    print()
-    print()
-
-    done = False
-    while not done:
-        new_obs, reward, done, _ = env.step(random.randint(0, 10))
-   
 def main():
 
     # Check for checkpoint to load - CLI syntax: py neutral.py <filepath>
@@ -170,9 +136,6 @@ def main():
     gc.collect()
     gc.disable()
 
-    # Read frame data from csv
-    framedata = pd.read_csv("./data/characters/ZEN/Motion.csv")
-
     # Setup action space
     _actions = "AIR AIR_A AIR_B AIR_D_DB_BA AIR_D_DB_BB AIR_D_DF_FA AIR_D_DF_FB AIR_DA AIR_DB AIR_F_D_DFA AIR_F_D_DFB AIR_FA AIR_FB AIR_GUARD AIR_GUARD_RECOV AIR_RECOV AIR_UA AIR_UB BACK_JUMP BACK_STEP CHANGE_DOWN CROUCH CROUCH_A CROUCH_B CROUCH_FA CROUCH_FB CROUCH_GUARD CROUCH_GUARD_RECOV CROUCH_RECOV DASH DOWN FOR_JUMP FORWARD_WALK JUMP LANDING NEUTRAL RISE STAND STAND_A STAND_B STAND_D_DB_BA STAND_D_DB_BB STAND_D_DF_FA STAND_D_DF_FB STAND_D_DF_FC STAND_F_D_DFA STAND_F_D_DFB STAND_FA STAND_FB STAND_GUARD STAND_GUARD_RECOV STAND_RECOV THROW_A THROW_B THROW_HIT THROW_SUFFER"
     action_strs = _actions.split(" ")
@@ -185,29 +148,9 @@ def main():
         action_vecs.append(v)
 
     # Setup observation space
-    #env = gym.make("FightingiceDataTwoPlayer-v0", java_env_path="", port=4242, freq_restart_java=100000)
+    env = gym.make("FightingiceDataNoFrameskip-v0", java_env_path="", port=4242, freq_restart_java=100000)
 
-    env1 = FightingiceEnv_TwoPlayer(port=4242)
-    p2_server = env1.build_pipe_and_return_p2()
-    env2 = FightingiceEnv_TwoPlayer(port=4242, p2_server=p2_server)
-
-    # Create second environment and give it a reference to the pipe made by the first environment (p2_server)
-    #env2 = gym.make("FightingiceDataTwoPlayer-v0", java_env_path="", port=4242, freq_restart_java=100000, p2_server=p2_server)
-
-    while True:
-        t1 = threading.Thread(target=play_thread, name="thread_1", args=(env1,))
-        t2 = threading.Thread(target=play_thread, name="thread_2", args=(env2,))
-        t1.start()
-        t2.start()
-        t1.join()
-        t2.join()
-        break
-
-    exit()
-
-    state = env.reset(p1=Neutral, p2=Neutral)
-
-    print("here")
+    state = env.reset(p2=Machete)
 
     # Setup epsilon values for explore/exploit calcs
     EPSILON_MAX = 0.95
@@ -234,14 +177,10 @@ def main():
 
     # Initialize timing data
     frame_counter = 0
-    accumulator = 0
     old_time = time.time()
 
     # Initialize reward log
     rewards = []
-
-    # Frame data cache
-    frame_cache = [[]] * 15
 
     # Training loop - loop until n_episodes are complete
     for episode in range(n_episodes):
@@ -268,7 +207,7 @@ def main():
             # Ensure the environment state is in the correct format
             if type(state) != np.ndarray:
                 state = state[0]
-
+    
             # Get the next action
             action = agent.act(state, epsilon)
 
@@ -277,7 +216,6 @@ def main():
 
             # Get opponent's current state from env (STAND, CROUCH, AIR, DOWN)
             opp_state = env.getP2().state
-            p2 = env.getP2()
 
             # Calculate reward function based on states and action
             reward = calc_reward(env, state, action, next_state, prev_opp_state, opp_state, done)
@@ -297,9 +235,6 @@ def main():
             # Update epsilon for next frame
             epsilon = max(epsilon * EPSILON_DECAY, EPSILON_MIN)
 
-            #end_time = time.time()
-            #print("everything else dt = " + str((end_time - start_time) * 1000.0))
-
             # Check if round is complete
             if done:
                 
@@ -310,18 +245,17 @@ def main():
                 old_time = new_time
                 frame_counter = 0
 
-                # Update Q-values in a batch
+                # Update Q-values in a batch inbetween rounds
                 agent.learn(memory, batch_size)
 
                 # Setup for the next round
                 round += 1
                 state = env.reset(p2=Machete)
 
-        print("Total reward: " + str(total_reward))
-        print("Epsilon: " + str(epsilon))
-
+        # Log total reward of episode for
         rewards.append(total_reward)
 
+        # Save the model every 50 episodes
         if episode > 0 and episode % 50 == 0:
             # Save this model
             agent.save('./checkpoint.pt', epsilon)
@@ -331,15 +265,6 @@ def main():
 
     # Re-enable garbage collection
     gc.enable()
-
-    plt.plot(agent.losses)
-    plt.show()
-
-    plt.plot(rewards)
-    plt.show()
-
-    env.close()
-    exit()
 
 if __name__ == "__main__":
     main()

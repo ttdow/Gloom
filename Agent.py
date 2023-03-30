@@ -26,8 +26,6 @@ class Agent():
 
         action = 0
 
-        start_time = time.time()
-
         # Convert state data to tensor
         state = torch.FloatTensor(state).unsqueeze(0).to(self.device)
 

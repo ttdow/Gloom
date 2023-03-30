@@ -2,14 +2,10 @@ import numpy as np
 from py4j.java_gateway import get_field
 import time
 
-class GymAI(object):
+class NewGymAI(object):
     def __init__(self, gateway, pipe, frameskip=False):
         self.gateway = gateway
         self.pipe = pipe
-
-        self.width = 96  # The width of the display to obtain
-        self.height = 64  # The height of the display to obtain
-        self.grayscale = True  # The display's color to obtain true for grayscale, false for RGB
 
         self.obs = None
         self.just_inited = True
@@ -99,24 +95,25 @@ class GymAI(object):
                 self.isGameJustStarted = True
                 return
 
-            if False:
-                # Check whether there are unexecuted keys in the list of keys waiting to be executed
-                if self.cc.getSkillFlag():
-                    self.inputKey = self.cc.getSkillKey()
-                    return
-                
-                # Checks whether the player is hitting the opponent?
-                if self.frameData.getCharacter(self.player).isHitConfirm():
-                    oppo_act = str(self.pre_framedata.getCharacter(not self.player).getAction())
-                    if oppo_act in self.interupt_actions:
-                        self.counter_hit = True
+            """
+            # Check whether there are unexecuted keys in the list of keys waiting to be executed
+            if self.cc.getSkillFlag():
+                self.inputKey = self.cc.getSkillKey()
+                return
+            
+            # Checks whether the player is hitting the opponent?
+            if self.frameData.getCharacter(self.player).isHitConfirm():
+                oppo_act = str(self.pre_framedata.getCharacter(not self.player).getAction())
+                if oppo_act in self.interupt_actions:
+                    self.counter_hit = True
 
-                # Can only assume this means the player is able to enter inputs currently
-                if not self.isControl:
-                    return
+            # Can only assume this means the player is able to enter inputs currently
+            if not self.isControl:
+                return
+            """
 
-                self.inputKey.empty()
-                self.cc.skillCancel()
+            self.inputKey.empty()
+            self.cc.skillCancel()
 
             # if just inited, should wait for first reset()
             if self.just_inited:
@@ -128,7 +125,7 @@ class GymAI(object):
                 else:
                     raise ValueError
                 
-            # if not just inited but self.obs is none, it means second/thrid round just started
+            # if not just inited but self.obs is none, it means second/third round just started
             # should return only obs for reset()
             elif self.obs is None:
                 self.obs = self.get_obs()
@@ -145,11 +142,14 @@ class GymAI(object):
 
             #print("get step in {}".format(self.pipe))
             if len(request) == 2 and request[0] == "step":
+
                 action = request[1]
-                if isinstance(action,int):
+                
+                if isinstance(action, int):
                     self.cc.commandCall(self.action_strs[action])
                 else:
                     self.cc.commandCall(action)
+
                 if not self.frameskip:
                     self.inputKey = self.cc.getSkillKey()
 
