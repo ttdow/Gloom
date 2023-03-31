@@ -102,8 +102,8 @@ class Agent():
         loss = self.loss_fn(q_values, expected_q_values.float())
         
         # 2% chance to log loss (hacky version of periodic logging)
-        if torch.rand(1)[0] > 0.98:
-            self.losses.append(loss.item())
+        #if torch.rand(1)[0] > 0.98:
+        self.losses.append(loss.item())
 
         # Optimize
         self.optimizer.zero_grad()

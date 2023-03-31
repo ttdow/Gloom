@@ -111,7 +111,7 @@ def main():
 
     # Setup epsilon values for explore/exploit calcs
     EPSILON_MAX = 0.95
-    EPSILON_DECAY = 0.999975
+    EPSILON_DECAY = 0.9995
     EPSILON_MIN = 0.05
     epsilon = EPSILON_MAX
 
@@ -212,8 +212,10 @@ def main():
         if episode > 0 and targetDNN_soft_update_freq % episode == 0:
             agent.soft_update_target_network()
 
+        print("Epsiode: " + str(episode))
         print("Epsilon: " + str(epsilon))
         print("Total Reward: " + str(total_reward))
+        print("---------------------------------------")
 
         # Log total reward of episode for
         rewards.append(total_reward)
@@ -222,7 +224,7 @@ def main():
         if episode > 0 and episode % 50 == 0:
             # Save this model
             print("Saving checkpoint at episode " + str(episode))
-            agent.save('./aggressive.pt', epsilon, rewards)
+            agent.save('./counter.pt', epsilon, rewards)
 
         # Force garbage collection between episodes
         gc.collect()
