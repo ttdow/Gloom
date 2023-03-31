@@ -110,7 +110,7 @@ def main():
 
     # Setup epsilon values for explore/exploit calcs
     EPSILON_MAX = 0.95
-    EPSILON_DECAY = 0.999975
+    EPSILON_DECAY = 0.9995
     EPSILON_MIN = 0.05
     epsilon = EPSILON_MAX
 
@@ -152,6 +152,8 @@ def main():
 
         # Round timing data
         old_time = time.time()
+
+        print("Episode: " + str(episode))
 
         # Loop until n_rounds are complete
         while round < n_rounds:
@@ -222,6 +224,8 @@ def main():
             # Save this model
             print("Saving checkpoint at episode " + str(episode))
             agent.save('./aggressive.pt', epsilon, rewards)
+
+        print("------------------------------")
 
         # Force garbage collection between episodes
         gc.collect()

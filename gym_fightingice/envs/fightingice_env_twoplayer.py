@@ -16,7 +16,6 @@ import gym_fightingice
 from gym_fightingice.envs.gym_ai import GymAI
 from gym_fightingice.envs.gym_ai_display import GymAIDisplay
 from gym_fightingice.envs.Machete import Machete
-from gym_fightingice.envs.Neutral import Neutral
 
 def game_thread(env):
 
