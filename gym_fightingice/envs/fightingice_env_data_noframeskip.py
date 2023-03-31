@@ -126,7 +126,7 @@ class FightingiceEnv_Data_NoFrameskip(gym.Env):
                                                   "--mute", 
                                                   "--grey-bg", 
                                                   "-off", 
-                                                  "--disable-window", 
+                                                  #"--disable-window", 
                                                   "--limithp", 
                                                   "100", 
                                                   "100"], 
