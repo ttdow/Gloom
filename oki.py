@@ -132,6 +132,9 @@ def main():
     n_episodes = 100
     n_rounds = 3
 
+    rewards = []
+    actions = []
+
     # Flag for round finished
     done = False
 
@@ -149,6 +152,7 @@ def main():
 
         training = False
         action_count = 0
+        episode_actions = []
         while round < n_rounds:
 
             #print(dir(env.getP2()))
@@ -163,6 +167,7 @@ def main():
                 action_count += 1
                 #print("TRAINING")
                 action = agent.act(state, epsilon)
+                episode_actions.append(action)
                 next_state, reward, done, _ = env.step(action)
                 reward = 0
                 if len(prev_state) == 143 and len(state) == 143:
@@ -191,8 +196,9 @@ def main():
                 state = env.reset(p2=WakeUp)
 
         print("Total reward: " + str(total_reward))
+        rewards.append(total_reward)
         if episode > 0 and episode % 50 == 0:
-            agent.save('./oki_checkpiont.pt', epsilon)
+            agent.save('./oki_checkpiont.pt', epsilon, rewards)
 
     #agent.save('./oki_checkpoint.pt')
 

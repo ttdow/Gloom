@@ -205,6 +205,7 @@ def main():
 
     # Initialize reward log
     rewards = []
+    winners = []
 
     # Frame data cache
     frame_cache = [[]] * 15
@@ -305,6 +306,8 @@ def main():
                 print(str(frame_counter) + " frames / " + str(dt) + " (FPS: " + str(frame_counter / dt) + ")")
                 old_time = new_time
                 frame_counter = 0
+
+
 
                 ## Update Q-values in a batch
                 #agent.learn(memory, batch_size)
