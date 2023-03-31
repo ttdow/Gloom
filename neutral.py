@@ -73,15 +73,26 @@ def calc_reward(env, env_state, action, next_env_state, prev_opp_state, opp_stat
         if opp_state.equals(env.getP2().gateway.jvm.enumerate.State.DOWN) and opp_state != prev_opp_state:
             reward += 1000
 
+    player_old_HP = env_state[0]
+    player_new_HP = next_env_state[0]
+
+    opponent_old_HP = env_state[65]
+    opponent_new_HP = next_env_state[65]
+
     # ------------------ Incentivize dealing damage to opponent ---------------
-    damage_done = (env_state[65] - next_env_state[65]) * 100
+    damage_done = (opponent_old_HP - opponent_new_HP[65]) * 100
     if damage_done > 0:
         reward += damage_done    # Reward proportional to damage done
 
     # ------------------ Incentivize taking less damage -----------------------
-    damage_taken = (env_state[0] - next_env_state[0]) * 100
+    damage_taken = (player_old_HP[0] - player_new_HP[0]) * 100
     if damage_taken > 0:
         reward -= damage_taken  # Penalize proportional to damage taken
+
+    # ------------------ Big incentive for winning a round --------------------
+    if done:
+        if player_new_HP > opponent_new_HP:
+            reward += 500
 
     # TODO Customize reward based on spacing state
     # -------------------- Determine spacing state ----------------------------
@@ -91,20 +102,20 @@ def calc_reward(env, env_state, action, next_env_state, prev_opp_state, opp_stat
         # At close range, all attack options (pokes, normals, and specials) can connect
         # Generally want to be on offensive, but once your turn is over you either try to extend
         #  your turn or return to neutral
-        reward += damage_done
-        reward -= damage_taken      # Double damage_taken and damage_done bonus/malus in close range
+        pass
 
     elif dist <= 250:
         # Mid range / Footsie range
         # Just beyond the reach of your opponent's pokes and normals, but within jump-in range
         # Purposefully move in and out of your opponent's attack range to bait
-        reward += 0
+        pass
 
     elif dist <= 500:
         # Far range
         # Only have to worry about projectiles
-        reward += 0
+        pass
 
+    # Get player and opponent x-coords
     playerX = env_state[2]
     opponentX = env_state[67]
     
@@ -112,14 +123,14 @@ def calc_reward(env, env_state, action, next_env_state, prev_opp_state, opp_stat
     # Be wary of corner
     if playerX < 100:
         if opponentX < playerX:
-            reward += 25    # Bonus for pinning opponent in corner
+            reward += 1    # Bonus for pinning opponent in corner
         else:
-            reward -= 25    # Malus for being pinned
+            reward -= 1    # Malus for being pinned
     elif playerX > 860:
         if opponentX > playerX:
-            reward += 25    # Bonus for pinning opponent in corner
+            reward += 1    # Bonus for pinning opponent in corner
         else:
-            reward -= 25    # Malus for being pinned
+            reward -= 1    # Malus for being pinned
 
     return reward
 
