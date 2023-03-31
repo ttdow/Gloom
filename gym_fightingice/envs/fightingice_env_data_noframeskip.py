@@ -108,10 +108,30 @@ class FightingiceEnv_Data_NoFrameskip(gym.Env):
                 self.java_env_path, self.port))
             devnull = open(os.devnull, 'w')
 
+            # WINDOWS
             if self.system_name == "windows":
                 # -Xms1024m -Xmx1024m we need set this in windows
-                self.java_env = subprocess.Popen(["java", "-Xms1024m", "-Xmx1024m", "-cp", self.start_up_str, "Main", "--port", str(self.port), "--py4j", "--fastmode",
-                                                "--inverted-player", "1", "-df", "--mute", "--grey-bg", "-off", "--disable-window", "--limithp", "100", "100"], stdout=devnull, stderr=devnull)
+                self.java_env = subprocess.Popen(["java", 
+                                                  "-Xms1024m", 
+                                                  "-Xmx1024m", 
+                                                  "-cp", self.start_up_str, 
+                                                  "Main", 
+                                                  "--port", 
+                                                  str(self.port), 
+                                                  "--py4j", 
+                                                  "--fastmode",
+                                                  "--inverted-player", 
+                                                  "1", 
+                                                  "-df", 
+                                                  "--mute", 
+                                                  "--grey-bg", 
+                                                  "-off", 
+                                                  "--disable-window", 
+                                                  "--limithp", 
+                                                  "100", 
+                                                  "100"], 
+                                                  stdout=devnull, 
+                                                  stderr=devnull)
             elif self.system_name == "linux":
                 self.java_env = subprocess.Popen(["java", "-cp", self.start_up_str, "Main", "--port", str(self.port), "--py4j", "--fastmode",
                                                 "--grey-bg", "--inverted-player", "1", "--mute", "--limithp", "100", "100"], stdout=devnull, stderr=devnull)

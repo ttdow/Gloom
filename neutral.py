@@ -168,9 +168,10 @@ def main():
         print("Model: " + file + " loaded.")
 
     # Hyperparameters
-    batch_size = 256
-    n_episodes = 10000
-    n_rounds = 3
+    batch_size = 256               # Experience replay batch size per round
+    n_episodes = 10000             # Number of training episodes
+    n_rounds = 3                   # Round per episode
+    targetDNN_soft_update_freq = 5 # Target network soft update frequency
 
     # Flag for round finished
     done = False
@@ -230,9 +231,6 @@ def main():
             # Update the state for next frame
             state = next_state
 
-            # Update epsilon for next frame
-            epsilon = max(epsilon * EPSILON_DECAY, EPSILON_MIN)
-
             # Check if round is complete
             if done:
                 
@@ -246,9 +244,16 @@ def main():
                 # Update Q-values in a batch inbetween rounds
                 agent.learn(memory, batch_size)
 
+                # Update epsilon for next round
+                epsilon = max(epsilon * EPSILON_DECAY, EPSILON_MIN)
+
                 # Setup for the next round
                 round += 1
                 state = env.reset(p2=Machete)
+
+        # Only update target network periodically
+        if episode > 0 and targetDNN_soft_update_freq % episode == 0:
+            agent.soft_update_target_network()
 
         print("Epsilon: " + str(epsilon))
         print("Total Reward: " + str(total_reward))
@@ -259,6 +264,7 @@ def main():
         # Save the model every 50 episodes
         if episode > 0 and episode % 50 == 0:
             # Save this model
+            print("Saving checkpoint at episode " + str(episode))
             agent.save('./checkpoint.pt', epsilon, rewards)
 
         # Force garbage collection between episodes

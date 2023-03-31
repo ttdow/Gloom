@@ -1,6 +1,7 @@
 import torch
 import numpy as np
 import time
+import copy
 
 from DNN import DNN
 
@@ -11,16 +12,31 @@ class Agent():
         self.n_actions = n_actions
 
         self.device = torch.device("cpu") #torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-        self.model = DNN().to(self.device)
+        self.model = DNN().to(self.device)       # Used for calculating current Q-values during training 
+        self.target =  copy.deepcopy(self.model) # Used for calculating target Q-values during training
 
-        self.target = DNN().to(self.device) # Used for calculating target Q-values during training
-        self.policy = DNN().to(self.device) # Used for calculating Q-values and selecting actions
+        # Freeze parameters in target network - we update the target network manually
+        for p in self.target.parameters():
+            p.requires_grad = False
 
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=1e-3)
+        # Hyperparameters
+        self.learning_rate = 1e-3   # Learning rate used for gradient descent
+        self.gamma = 0.99           # Discount rate for future Q-value estimates
+        self.tau = 0.01             # Soft update coefficient for target network
+
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate)
         self.loss_fn = torch.nn.MSELoss()
-        self.gamma = 0.99
 
         self.losses = []
+
+    def soft_update_target_network(self):
+
+        # Iterate through each weight in both the current and target DNNs (they are identically structured)
+        for current_parameter, target_parameter in zip(self.model.parameters(), self.target.parameters()):
+            
+            # Update the data value of the weight by interpolating between the current weight and target weight
+            #   This smooths the update of the target network and *should* result in more consistency and stability
+            target_parameter.data.copy_(self.tau * current_parameter + (1 - self.tau) * target_parameter)
     
     def act(self, state, epsilon):
 
@@ -39,7 +55,7 @@ class Agent():
             if type(state) != np.ndarray:
                 state = state[0]
 
-            # Calculate Q-values of actions given state
+            # Calculate Q-values of actions given current state using the current model
             q_values = self.model(state)
 
             # Get the best action as determined by the Q-values
@@ -73,13 +89,13 @@ class Agent():
         rewards = torch.tensor(list(rewards)).unsqueeze(1)
         dones = torch.tensor(list(dones)).unsqueeze(1)
 
-        # Give the DNN the batch of states to generate Q-values, then trim to the actions that were selected
+        # Give the CURRENT DNN the batch of states to generate Q-values, then trim to the actions that were selected
         q_values = self.model(states).gather(1, actions)
 
-        # Give the DNN the batch of next states to generate Q-values, then select the optimal action choice Q-value
-        next_q_values = self.model(next_states).max(1)[0].unsqueeze(1)
+        # Give the TARGET DNN the batch of next states to generate Q-values, then select the optimal action choice Q-value
+        next_q_values = self.target(next_states).max(1)[0].unsqueeze(1)
 
-        # Use Bellman equation to determine optimal action values
+        # Use Bellman equation to determine optimal action values using the TARGET DNN
         expected_q_values = rewards + (self.gamma * next_q_values * (1 - dones.long()))
 
         # Calculate loss from optimal actions and taken actions
@@ -94,7 +110,7 @@ class Agent():
         loss.backward()
         self.optimizer.step()
 
-    def save(self, file, epsilon, rewards, losses):
+    def save(self, file, epsilon, rewards):
         checkpoint = {'model': self.model.state_dict(),
                       'optimizer': self.optimizer.state_dict(),
                       'epsilon': epsilon,
@@ -104,7 +120,10 @@ class Agent():
 
     def load(self, file):
         checkpoint = torch.load(file, map_location=self.device)
-        self.model.load_state_dict(checkpoint['model'])
-        self.optimizer.load_state_dict(checkpoint['optimizer'])
+
+        self.model.load_state_dict(checkpoint['model'])         # Load current DNN weights
+        self.target =  copy.deepcopy(self.model)                # Update target DNN weights
+
+        self.optimizer.load_state_dict(checkpoint['optimizer']) # Update optimizer weights
 
         return checkpoint['epsilon']
