@@ -102,6 +102,8 @@ class OkiAgent():
         # Calculate loss from optimal actions and taken actions
         loss = self.loss_fn(q_values, expected_q_values.float())
 
+        self.losses.append(loss.item())
+
         # Optimize
         self.optimizer.zero_grad()
         loss.backward()
@@ -120,5 +122,6 @@ class OkiAgent():
         checkpoint = torch.load(file, map_location=self.device)
         self.model.load_state_dict(checkpoint['model'])
         self.optimizer.load_state_dict(checkpoint['optimizer'])
+        self.losses = checkpoint['losses']
 
         return checkpoint['epsilon'], checkpoint['rewards']

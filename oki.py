@@ -129,8 +129,8 @@ def main():
     rewards = []
     actions = []
 
-    if file != "":
-        _, rewards = agent.load(file)
+    if True:
+        _, rewards = agent.load("oki.pt")
         print("Model: " + file + " loaded.")
 
     # Hyperparameters
@@ -204,7 +204,7 @@ def main():
 
         print("Total reward: " + str(total_reward))
         rewards.append(total_reward)
-        if episode > 0 and episode % 10 == 0:
+        if episode > 0 and episode % 1 == 0:
             agent.save('./oki.pt', epsilon, rewards)
 
     #agent.save('./oki_checkpoint.pt')

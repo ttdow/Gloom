@@ -23,13 +23,18 @@ def main():
     oki_checkpoint = torch.load(oki_file, map_location = device)
 
     oki_rewards = oki_checkpoint['rewards']
-    oki_n_episodes = len(oki_rewards)
+    oki_losses = oki_checkpoint['losses']
+
+    print(len(oki_rewards))
+    print(len(oki_losses))
+
+    #oki_n_episodes = len(oki_rewards)
     
-    plt.plot(range(oki_n_episodes), oki_rewards) 
-    plt.title("oki model rewards")
-    plt.xlabel("Training Episodes")
-    plt.ylabel("Rewards")
-    plt.show()
+    #plt.plot(range(oki_n_episodes), oki_rewards) 
+    #plt.title("oki model rewards")
+    #plt.xlabel("Training Episodes")
+    #plt.ylabel("Rewards")
+    #plt.show()
 
     
 
