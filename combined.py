@@ -144,7 +144,8 @@ def main():
     # Check for checkpoint to load - CLI syntax: py neutral.py <filepath>
     # Model saves automatically at the end of n_episodes (hyperparameter below)
     # Can change file output name at the bottom of this function
-    file = ""
+    neutral_file = "neutral.pt"
+    oki_file = "oki_checkpiont.pt"
     if (len(sys.argv) > 1):
         file = str(sys.argv[1])
 
@@ -169,7 +170,7 @@ def main():
     # Setup observation space
     env = gym.make("FightingiceDataNoFrameskip-v0", java_env_path="", port=4242, freq_restart_java=100000)
 
-    state = env.reset(p2=WakeUp)
+    state = env.reset(p2=Machete)
 
     # Setup epsilon values for explore/exploit calcs
     EPSILON_MAX = 0.95
@@ -183,9 +184,11 @@ def main():
     memory = ReplayMemory(100000)
 
     # Load model if it exists
-    if file != "":
-        epsilon = agent.load(file)
-        print("Model: " + file + " loaded.")
+    if neutral_file != "":
+        epsilon = agent.load(neutral_file)
+        #print("Model: " + file + " loaded.")
+    if oki_file != "":
+        _ = okiAgent.load(oki_file)
 
     # Hyperparameters
     batch_size = 256
@@ -202,6 +205,7 @@ def main():
 
     # Initialize reward log
     rewards = []
+    winners = []
 
     # Frame data cache
     frame_cache = [[]] * 15
@@ -212,7 +216,7 @@ def main():
     for episode in range(n_episodes):
 
         # Reset env for next episode
-        state = env.reset(p2=WakeUp)
+        state = env.reset(p2=Machete)
         round = 0
         total_reward = 0
 
@@ -229,32 +233,31 @@ def main():
             
             # Track frame rate
             frame_counter += 1
-            #print(env.getP2().gameData.wait(1))
-            opp_state = env.getP2().getState()
+
+            opp_state = env.getP2().state
             #print(opp_state)
             if type(opp_state) != str and type(prev_opp_state) != str and type(opp_state) != int and type(prev_opp_state) != int:
                 if opp_state.equals(env.getP2().gateway.jvm.enumerate.State.DOWN) and oki == False:
                     oki = True
 
             if oki == True:
-                #print('PERFORMING OKI')
+                print('PERFORMING OKI')
                 action_count += 1
                 action = okiAgent.act(state, epsilon)
                 next_state, reward, done, _ = env.step(action)
                 reward = 0
                 if len(prev_state) == 143 and len(state) == 143:
                     reward = (opp_hp_weight * (prev_state[65] - state[65])) - (player_hp_weight * (prev_state[0] - state[0]))
+                #print('reward: ', reward)
                 #total_reward += reward
                 memory.push(state, action, next_state, reward, done, okiAgent)
                 okiAgent.learn(memory, batch_size)
 
                 epsilon = max(epsilon * EPSILON_DECAY, EPSILON_MIN)
                 if action_count == 60:
-                    print('reward: ', reward)
                     print('OKI STOP')
                     oki = False
                     action_count = 0
-
             elif oki == False:
                 #print("NEUTRAL")
                 # Ensure the environment state is in the correct format
@@ -303,6 +306,8 @@ def main():
                 print(str(frame_counter) + " frames / " + str(dt) + " (FPS: " + str(frame_counter / dt) + ")")
                 old_time = new_time
                 frame_counter = 0
+
+
 
                 ## Update Q-values in a batch
                 #agent.learn(memory, batch_size)

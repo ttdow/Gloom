@@ -1,6 +1,7 @@
 from DNN import DNN
 import torch 
 import numpy as np
+import copy
 
 class OkiAgent():
 
@@ -8,14 +9,32 @@ class OkiAgent():
         self.n_states = n_states
         self.n_actions = n_actions
 
-        self.device = torch.device("cuda:0 " if torch.cuda.is_available() else "cpu")
-        self.model = DNN().to(self.device)
+        self.device = torch.device("cpu") #torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        self.model = DNN().to(self.device)       # Used for calculating current Q-values during training 
+        self.target =  copy.deepcopy(self.model) # Used for calculating target Q-values during training
 
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=1e-3)
+        # Freeze parameters in target network - we update the target network manually
+        for p in self.target.parameters():
+            p.requires_grad = False
+
+        # Hyperparameters
+        self.learning_rate = 1e-3   # Learning rate used for gradient descent
+        self.gamma = 0.99           # Discount rate for future Q-value estimates
+        self.tau = 0.01             # Soft update coefficient for target network
+
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate)
         self.loss_fn = torch.nn.MSELoss()
-        self.gamma = 0.99
 
         self.losses = []
+
+    def soft_update_target_network(self):
+
+        # Iterate through each weight in both the current and target DNNs (they are identically structured)
+        for current_parameter, target_parameter in zip(self.model.parameters(), self.target.parameters()):
+            
+            # Update the data value of the weight by interpolating between the current weight and target weight
+            #   This smooths the update of the target network and *should* result in more consistency and stability
+            target_parameter.data.copy_(self.tau * current_parameter + (1 - self.tau) * target_parameter)
 
     def act_not_training(self, state, epsilon):
         action = 29
@@ -27,23 +46,32 @@ class OkiAgent():
 
         action = 0
 
+        # Convert state data to tensor
         state = torch.FloatTensor(state).unsqueeze(0).to(self.device)
 
         # Explore
         if torch.rand(1)[0] < epsilon:  
             action = torch.tensor([np.random.choice(range(self.n_actions))]).item()
+
         # Exploit
         else:
             # Check for weird edge case       
             if type(state) != np.ndarray:
                 state = state[0]
 
-            # Calculate Q-values of actions given state
+            # Calculate Q-values of actions given current state using the current model
             q_values = self.model(state)
 
             # Get the best action as determined by the Q-values
             best_q_value = torch.argmax(q_values)
             action = best_q_value.item()
+
+        # Print Q-values for testing
+        # 2% chance to log Q-values (hacky version of periodic logging)
+        #test_q_values = self.model(state).squeeze(0)
+        #if torch.rand(1)[0] > 0.98:
+            #print("Q(s, a) = " + str(test_q_values[action].item()))
+            #print("maxQ(s, a) = " + str(test_q_values.max().item()))
 
         return action
     
@@ -79,10 +107,13 @@ class OkiAgent():
         loss.backward()
         self.optimizer.step()
 
-    def save(self, file, epsilon):
+    def save(self, file, epsilon, rewards):
         checkpoint = {'model': self.model.state_dict(),
                       'optimizer': self.optimizer.state_dict(),
-                      'epsilon': epsilon}
+                      'epsilon': epsilon,
+                      'rewards': rewards,
+                      'losses': self.losses}
+                      
         torch.save(checkpoint, file)
 
     def load(self, file):

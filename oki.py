@@ -8,7 +8,6 @@ from uuid import uuid4
 import gym
 import gym_fightingice
 from gym_fightingice.envs.Machete import Machete
-from gym_fightingice.envs.KickAI import KickAI
 from gym_fightingice.envs.WakeUp import WakeUp
 
 import matplotlib.pyplot as plt
@@ -135,6 +134,7 @@ def main():
     n_rounds = 3
 
     rewards = []
+    actions = []
 
     # Flag for round finished
     done = False
@@ -154,13 +154,14 @@ def main():
 
         training = False
         action_count = 0
+        episode_actions = []
         while round < n_rounds:
 
             #print(dir(env.getP2()))
             #exit()
             opp_state = env.getP2().state
             if type(opp_state) != str and type(prev_opp_state) != str and type(opp_state) != int and type(prev_opp_state) != int:
-                if opp_state.equals(env.getP2().gateway.jvm.enumerate.State.DOWN) and prev_opp_state.equals(env.getP2().gateway.jvm.enumerate.State.DOWN):
+                if opp_state.equals(env.getP2().gateway.jvm.enumerate.State.DOWN) and training == False:
                     #print('TRAINING START')
                     training = True
             #print(state [0], state[1], state[2]) 
@@ -168,17 +169,18 @@ def main():
                 action_count += 1
                 #print("TRAINING")
                 action = agent.act(state, epsilon)
+                episode_actions.append(action)
                 next_state, reward, done, _ = env.step(action)
                 reward = 0
                 if len(prev_state) == 143 and len(state) == 143:
                     reward = (opp_hp_weight * (prev_state[65] - state[65])) - (player_hp_weight * (prev_state[0] - state[0]))
-                print('reward: ', reward)
+                #print('reward: ', reward)
                 total_reward += reward
                 memory.push(state, action, next_state, reward, done, agent)
                 agent.learn(memory, batch_size)
 
                 epsilon = max(epsilon * EPSILON_DECAY, EPSILON_MIN)
-                if action_count == 3:
+                if action_count == 60:
                     #print('TRAINING STOP')
                     training = False
                     action_count = 0
@@ -196,17 +198,9 @@ def main():
                 state = env.reset(p2=WakeUp)
 
         print("Total reward: " + str(total_reward))
-
         rewards.append(total_reward)
         if episode > 0 and episode % 50 == 0:
-            agent.save('./oki_checkpiont.pt', epsilon)
-        
-    
-    plt.plot(agent.losses)
-    plt.show()
-
-    plt.plot(rewards)
-    plt.show()
+            agent.save('./oki.pt', epsilon, rewards)
 
     #agent.save('./oki_checkpoint.pt')
 
