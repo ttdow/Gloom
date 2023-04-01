@@ -121,4 +121,4 @@ class OkiAgent():
         self.model.load_state_dict(checkpoint['model'])
         self.optimizer.load_state_dict(checkpoint['optimizer'])
 
-        return checkpoint['epsilon']
+        return checkpoint['epsilon'], checkpoint['rewards']

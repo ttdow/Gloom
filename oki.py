@@ -9,6 +9,7 @@ import gym
 import gym_fightingice
 from gym_fightingice.envs.Machete import Machete
 from gym_fightingice.envs.WakeUp import WakeUp
+from gym_fightingice.envs.RL_TEST import RLTEST
 
 import matplotlib.pyplot as plt
 
@@ -124,8 +125,12 @@ def main():
     memory = ReplayMemory(50000)
 
     # Load model if it exists
+
+    rewards = []
+    actions = []
+
     if file != "":
-        agent.load(file)
+        _, rewards = agent.load(file)
         print("Model: " + file + " loaded.")
 
     # Hyperparameters
@@ -133,8 +138,6 @@ def main():
     n_episodes = 100
     n_rounds = 3
 
-    rewards = []
-    actions = []
 
     # Flag for round finished
     done = False
@@ -170,6 +173,7 @@ def main():
                 #print("TRAINING")
                 action = agent.act(state, epsilon)
                 episode_actions.append(action)
+                #env.getP2().setAction(action)
                 next_state, reward, done, _ = env.step(action)
                 reward = 0
                 if len(prev_state) == 143 and len(state) == 143:
@@ -186,6 +190,7 @@ def main():
                     action_count = 0
             elif training == False:
                 action = agent.act_not_training(state, epsilon)
+                #env.getP2().setAction(action)
                 next_state, reward, done, _ = env.step(action)
             # Update opponent's last state
             prev_state = state
@@ -199,7 +204,7 @@ def main():
 
         print("Total reward: " + str(total_reward))
         rewards.append(total_reward)
-        if episode > 0 and episode % 50 == 0:
+        if episode > 0 and episode % 10 == 0:
             agent.save('./oki.pt', epsilon, rewards)
 
     #agent.save('./oki_checkpoint.pt')
