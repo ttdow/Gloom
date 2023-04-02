@@ -14,6 +14,7 @@ class ReplayMemory():
     def __init__(self, capacity):
         self.capacity = capacity
         self.memory = []
+        self.priority = []
         self.position = 0
 
     def __len__(self) -> int:
@@ -24,6 +25,7 @@ class ReplayMemory():
         # Make more room in memory if needed
         if len(self.memory) < self.capacity:
             self.memory.append(None)
+            self.priority.append(None)
 
         # Not sure why this happens        
         if type(state) != np.ndarray:
@@ -32,6 +34,10 @@ class ReplayMemory():
         # Convert data from ndarray to tensor for ease of use
         state = torch.from_numpy(state).float().to(agent.device)
         next_state = torch.from_numpy(next_state).float().to(agent.device)
+
+        # Learn from last state, action transition
+        priority = agent.prioritize(state, action, next_state, reward, done)
+        self.priority[self.position] = priority
 
         # Save a new memory to circular buffer
         self.memory[self.position] = (state, action, next_state, reward, done)
@@ -263,7 +269,7 @@ def main():
                 # Update epsilon for next round
                 epsilon = max(epsilon * EPSILON_DECAY, EPSILON_MIN)
 
-                # Log play and opponent health
+                # Log player and opponent health
                 playerHP = state[0]
                 damage_taken.append(100 - playerHP)
                 opponentHP = state[65]
@@ -291,7 +297,7 @@ def main():
         if episode > 0 and episode % 50 == 0:
             # Save this model
             print("Saving checkpoint at episode " + str(episode))
-            agent.save('./neutral.pt', epsilon, rewards)
+            agent.save('./neutral3.pt', epsilon, rewards)
 
         print("------------------------------")
 

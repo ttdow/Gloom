@@ -62,32 +62,55 @@ class Agent():
             best_q_value = torch.argmax(q_values)
             action = best_q_value.item()
 
-        # Print Q-values for testing
-        # 2% chance to log Q-values (hacky version of periodic logging)
-        #test_q_values = self.model(state).squeeze(0)
-        #if torch.rand(1)[0] > 0.98:
-            #print("Q(s, a) = " + str(test_q_values[action].item()))
-            #print("maxQ(s, a) = " + str(test_q_values.max().item()))
-
         return action
+    
+    def prioritize(self, state, action, next_state, reward, done):
+
+        # Calculate Q-value of state, action transition
+        q_value = self.model(state)[action]
+
+        # Calculate Q-value of next state, best action transition
+        next_q_value = self.target(next_state).max(0)[0]
+
+        # Calculate expected Q-value using Bellman equation
+        expected_q_value = reward + (self.gamma * next_q_value * (1 - int(done)))
+
+         # Calculate TD error for prioritized replay
+        TDError = expected_q_value.float() - q_value
+
+        return abs(TDError)
     
     def learn(self, memory, batch_size):
 
         # Ensure their are enough memories for a batch
         if len(memory) < batch_size:
             return
-        
-        # Sample a random batch of memories
-        states, actions, next_states, rewards, dones = memory.sample(batch_size)
 
+        # Unpack memory priorities from experience replay buffer
+        priorities = memory.priority
+        priorities = torch.tensor(list(priorities))
+        priorities = priorities.detach().numpy()
+
+        # Calculate a probability using the priority value
+        probs = priorities / priorities.sum()
+
+        # Grab a random selection of memories using each of their probabilities
+        indices = np.random.choice(len(memory), batch_size, p=probs, replace=False)
+
+        # Stack the selected memories into a batch
+        batch = [memory.memory[i] for i in indices]
+
+        # Reorganize batch data for processing
+        states, actions, next_states, rewards, dones = zip(*batch)
+        
         # Convert states from tuples of tensors to multi-dimensional tensors
-        states = torch.stack(states, dim=0)
-        next_states = torch.stack(next_states, dim=0)
+        states = torch.stack(states, dim=0).to(self.device)
+        next_states = torch.stack(next_states, dim=0).to(self.device)
 
         # Convert tuples to 2D tensors to work with batched states data
-        actions = torch.tensor(list(actions)).unsqueeze(1)
-        rewards = torch.tensor(list(rewards)).unsqueeze(1)
-        dones = torch.tensor(list(dones)).unsqueeze(1)
+        actions = torch.tensor(list(actions)).unsqueeze(1).to(self.device)
+        rewards = torch.tensor(list(rewards)).unsqueeze(1).to(self.device)
+        dones = torch.tensor(list(dones)).unsqueeze(1).to(self.device)
 
         # Give the CURRENT DNN the batch of states to generate Q-values, then trim to the actions that were selected
         q_values = self.model(states).gather(1, actions)
@@ -100,9 +123,8 @@ class Agent():
 
         # Calculate loss from optimal actions and taken actions
         loss = self.loss_fn(q_values, expected_q_values.float())
-        
-        # 2% chance to log loss (hacky version of periodic logging)
-        #if torch.rand(1)[0] > 0.98:
+
+        # Log loss
         self.losses.append(loss.item())
 
         # Optimize
