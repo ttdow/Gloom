@@ -114,8 +114,8 @@ class Agent():
         checkpoint = {'model': self.model.state_dict(),
                       'optimizer': self.optimizer.state_dict(),
                       'epsilon': epsilon,
-                      'reward': rewards,
-                      'loss': self.losses}
+                      'rewards': rewards,
+                      'losses': self.losses}
         torch.save(checkpoint, file)
 
     def load(self, file):
@@ -123,7 +123,12 @@ class Agent():
 
         self.model.load_state_dict(checkpoint['model'])         # Load current DNN weights
         self.target =  copy.deepcopy(self.model)                # Update target DNN weights
-
         self.optimizer.load_state_dict(checkpoint['optimizer']) # Update optimizer weights
 
-        return checkpoint['epsilon']
+        if "losses" in checkpoint:
+            self.losses = checkpoint['losses']
+
+        if "rewards" in checkpoint:
+            return checkpoint['epsilon'], checkpoint['rewards']
+        else:
+            return checkpoint['epsilon'], list()

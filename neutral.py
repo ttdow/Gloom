@@ -80,12 +80,12 @@ def calc_reward(env, env_state, action, next_env_state, prev_opp_state, opp_stat
     opponent_new_HP = next_env_state[65]
 
     # ------------------ Incentivize dealing damage to opponent ---------------
-    damage_done = (opponent_old_HP - opponent_new_HP[65]) * 100
+    damage_done = (opponent_old_HP - opponent_new_HP) * 100
     if damage_done > 0:
         reward += damage_done    # Reward proportional to damage done
 
     # ------------------ Incentivize taking less damage -----------------------
-    damage_taken = (player_old_HP[0] - player_new_HP[0]) * 100
+    damage_taken = (player_old_HP - player_new_HP) * 100
     if damage_taken > 0:
         reward -= damage_taken  # Penalize proportional to damage taken
 
@@ -96,24 +96,24 @@ def calc_reward(env, env_state, action, next_env_state, prev_opp_state, opp_stat
 
     # TODO Customize reward based on spacing state
     # -------------------- Determine spacing state ----------------------------
-    dist = GetDistance(env_state)
-    if dist <= 135:
+    #dist = GetDistance(env_state)
+    #if dist <= 135:
         # Close range / Shimmy
         # At close range, all attack options (pokes, normals, and specials) can connect
         # Generally want to be on offensive, but once your turn is over you either try to extend
         #  your turn or return to neutral
-        pass
+        #pass
 
-    elif dist <= 250:
+    #elif dist <= 250:
         # Mid range / Footsie range
         # Just beyond the reach of your opponent's pokes and normals, but within jump-in range
         # Purposefully move in and out of your opponent's attack range to bait
-        pass
+        #pass
 
-    elif dist <= 500:
+    #elif dist <= 500:
         # Far range
         # Only have to worry about projectiles
-        pass
+        #pass
 
     # Get player and opponent x-coords
     playerX = env_state[2]
@@ -173,16 +173,22 @@ def main():
     agent = Agent(state.shape[0], len(action_vecs))
     memory = ReplayMemory(100000)
 
+    # Initialize logs
+    rewards = []
+    damage_done = []
+    damage_taken = []
+    wins = 0
+
     # Load model if it exists
     if file != "":
-        epsilon = agent.load(file)
+        epsilon, rewards = agent.load(file)
         print("Model: " + file + " loaded.")
 
     # Hyperparameters
-    batch_size = 256               # Experience replay batch size per round
+    batch_size = 512               # Experience replay batch size per round
     n_episodes = 10000             # Number of training episodes
     n_rounds = 3                   # Round per episode
-    targetDNN_soft_update_freq = 5 # Target network soft update frequency
+    targetDNN_soft_update_freq = 1 # Target network soft update frequency
 
     # Flag for round finished
     done = False
@@ -190,9 +196,6 @@ def main():
     # Initialize timing data
     frame_counter = 0
     old_time = time.time()
-
-    # Initialize reward log
-    rewards = []
 
     # Training loop - loop until n_episodes are complete
     for episode in range(n_episodes):
@@ -207,6 +210,8 @@ def main():
 
         # Round timing data
         old_time = time.time()
+
+        print("Episode: " + str(episode))
 
         # Loop until n_rounds are complete
         while round < n_rounds:
@@ -258,12 +263,22 @@ def main():
                 # Update epsilon for next round
                 epsilon = max(epsilon * EPSILON_DECAY, EPSILON_MIN)
 
+                # Log play and opponent health
+                playerHP = state[0]
+                damage_taken.append(100 - playerHP)
+                opponentHP = state[65]
+                damage_done.append(100 - opponentHP)
+
+                # Log winner
+                if playerHP > opponentHP:
+                    wins += 1
+
                 # Setup for the next round
                 round += 1
                 state = env.reset(p2=Machete)
 
-        # Only update target network periodically
-        if episode > 0 and targetDNN_soft_update_freq % episode == 0:
+        # Only update target network at the end of an episode
+        if episode > 0 and episode % targetDNN_soft_update_freq == 0:
             agent.soft_update_target_network()
 
         print("Epsilon: " + str(epsilon))
@@ -276,7 +291,9 @@ def main():
         if episode > 0 and episode % 50 == 0:
             # Save this model
             print("Saving checkpoint at episode " + str(episode))
-            agent.save('./checkpoint.pt', epsilon, rewards)
+            agent.save('./neutral.pt', epsilon, rewards)
+
+        print("------------------------------")
 
         # Force garbage collection between episodes
         gc.collect()
