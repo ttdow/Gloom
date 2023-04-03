@@ -14,7 +14,7 @@ def load(file):
         x = np.array(range(0, len(rewards)))
         y = np.array(rewards)
         a, b = np.polyfit(x, y, 1)
-        print("y = " + str(a) + " * x + " + str(b))
+        print("y = " + str(a) + "x + " + str(b))
 
         # Plot rewards
         plt.plot(rewards)
@@ -25,7 +25,7 @@ def load(file):
         x = np.array(range(0, len(losses)))
         y = np.array(losses)
         a, b = np.polyfit(x, y, 1)
-        print("y = " + str(a) + " * x + " + str(b))
+        print("y = " + str(a) + "x + " + str(b))
 
         # Plot losses
         plt.plot(checkpoint['losses'])
