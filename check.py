@@ -1,37 +1,48 @@
+import sys
 import torch
-import copy
 import matplotlib.pyplot as plt
 import numpy as np
 
 def load(file):
+        
         checkpoint = torch.load(file, map_location=torch.device("cpu"))
 
-        #print(checkpoint['model']) # Load current DNN weights
-        print(checkpoint['rewards'])
-        #print(len(checkpoint['rewards']))
+        rewards = checkpoint['rewards']
+        losses = checkpoint['losses']
 
-        x = np.array(range(0, len(checkpoint['rewards'])))
-        y = np.array(checkpoint['rewards'])
-
+        # Create best fit line for rewards
+        x = np.array(range(0, len(rewards)))
+        y = np.array(rewards)
         a, b = np.polyfit(x, y, 1)
-        print(a, b)
+        print("y = " + str(a) + " * x + " + str(b))
 
-        #plt.scatter(x, y)
-        plt.plot(y)
+        # Plot rewards
+        plt.plot(rewards)
         plt.title("Reward Per Episode")
         plt.show()
 
+        # Create best fit line for losses
+        x = np.array(range(0, len(losses)))
+        y = np.array(losses)
+        a, b = np.polyfit(x, y, 1)
+        print("y = " + str(a) + " * x + " + str(b))
 
-        print(checkpoint['losses'])
-
+        # Plot losses
         plt.plot(checkpoint['losses'])
         plt.title("Loss Per Round")
         plt.show()
 
-        #self.optimizer.load_state_dict(checkpoint['optimizer']) # Update optimizer weights
+        # Print epsilon
+        print("Final epsilon during training: " + str(checkpoint['epsilon']))
 
-        return checkpoint['epsilon']
+        return
 
-file = "./neutral3.pt"
+# Get file name from argument
+file = ""
+if (len(sys.argv) > 1):
+        file = str(sys.argv[1])
+else:
+        print("Please enter a file name.")
+        exit()
 
-print("Epsilon: " + str(load(file)))
+load(file)
