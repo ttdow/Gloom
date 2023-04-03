@@ -3,6 +3,7 @@ import time
 import random
 import sys
 import gc
+from tqdm import tqdm
 
 import torch
 import gym
@@ -115,7 +116,7 @@ def main():
 
     # Setup epsilon values for explore/exploit calcs
     EPSILON_MAX = 0.95
-    EPSILON_DECAY = 0.999975
+    EPSILON_DECAY = 0.99975
     EPSILON_MIN = 0.05
     epsilon = EPSILON_MAX
 
@@ -145,7 +146,7 @@ def main():
     rewards = []
 
     # Training loop - loop until n_episodes are complete
-    for episode in range(n_episodes):
+    for episode in tqdm(range(n_episodes)):
 
         # Reset env for next episode
         state = env.reset(p2=Machete)
@@ -226,7 +227,7 @@ def main():
         if episode > 0 and episode % 50 == 0:
             # Save this model
             print("Saving checkpoint at episode " + str(episode))
-            agent.save('./aggressive.pt', epsilon, rewards)
+            agent.save('./balanced.pt', epsilon, rewards)
 
         # Force garbage collection between episodes
         gc.collect()
