@@ -23,6 +23,7 @@ class Agent():
         self.learning_rate = 1e-3   # Learning rate used for gradient descent
         self.gamma = 0.99           # Discount rate for future Q-value estimates
         self.tau = 0.01             # Soft update coefficient for target network
+        self.alpha = 0.6            # Controls degree of prioritization
 
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate)
         self.loss_fn = torch.nn.MSELoss()
@@ -100,6 +101,10 @@ class Agent():
         # Stack the selected memories into a batch
         batch = [memory.memory[i] for i in indices]
 
+        # Update priorities of selected memories
+        for i in indices:
+            memory.priority[i] = (memory.priority[i] + 1e-5) ** self.alpha
+ 
         # Reorganize batch data for processing
         states, actions, next_states, rewards, dones = zip(*batch)
         
