@@ -3,6 +3,7 @@ import time
 import random
 import sys
 import gc
+from tqdm import tqdm
 
 import torch
 import gym
@@ -170,9 +171,9 @@ def main():
     state = env.reset(p2=Machete)
 
     # Setup epsilon values for explore/exploit calcs
-    EPSILON_MAX = 0.95
-    EPSILON_DECAY = 0.99999975
-    EPSILON_MIN = 0.05
+    EPSILON_MAX = 1.0
+    EPSILON_DECAY = 0.9847666521
+    EPSILON_MIN = 0.01
     epsilon = EPSILON_MAX
 
     # Initialize agent and experience replay memory
@@ -191,8 +192,8 @@ def main():
         print("Model: " + file + " loaded.")
 
     # Hyperparameters
-    batch_size = 512               # Experience replay batch size per round
-    n_episodes = 10000             # Number of training episodes
+    batch_size = 2048              # Experience replay batch size per round
+    n_episodes = 150               # Number of training episodes
     n_rounds = 3                   # Round per episode
     targetDNN_soft_update_freq = 1 # Target network soft update frequency
 
@@ -204,7 +205,7 @@ def main():
     old_time = time.time()
 
     # Training loop - loop until n_episodes are complete
-    for episode in range(n_episodes):
+    for episode in tqdm(range(n_episodes+1)):
 
         # Reset env for next episode
         state = env.reset(p2=Machete)
