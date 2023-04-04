@@ -26,6 +26,6 @@ def load(file):
 
         return checkpoint['epsilon']
 
-file = "./aggressive.pt"
+file = "./test.pt"
 
 print("Epsilon: " + str(load(file)))
