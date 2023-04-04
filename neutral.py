@@ -185,7 +185,7 @@ def main():
         print("Model: " + file + " loaded.")
 
     # Hyperparameters
-    batch_size = 2048              # Experience replay batch size per round
+    batch_size = 32                # Experience replay batch size per round
     n_episodes = 150               # Number of training episodes
     n_rounds = 3                   # Round per episode
     targetDNN_soft_update_freq = 1 # Target network soft update frequency
@@ -244,6 +244,9 @@ def main():
             # Add the last state, action transition to the agent's memory cache
             memory.push(state, action, next_state, reward, done, agent)
 
+            # Update Q-values
+            agent.learn(memory, batch_size)
+
             # Update the state for next frame
             state = next_state
 
@@ -256,9 +259,6 @@ def main():
                 print(str(frame_counter) + " frames / " + str(dt) + " (FPS: " + str(frame_counter / dt) + ")")
                 old_time = new_time
                 frame_counter = 0
-
-                # Update Q-values in a batch inbetween rounds
-                agent.learn(memory, batch_size)
 
                 # Update epsilon for next round
                 epsilon = max(epsilon * EPSILON_DECAY, EPSILON_MIN)
