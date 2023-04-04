@@ -62,13 +62,6 @@ class Agent():
             best_q_value = torch.argmax(q_values)
             action = best_q_value.item()
 
-        # Print Q-values for testing
-        # 2% chance to log Q-values (hacky version of periodic logging)
-        #test_q_values = self.model(state).squeeze(0)
-        #if torch.rand(1)[0] > 0.98:
-            #print("Q(s, a) = " + str(test_q_values[action].item()))
-            #print("maxQ(s, a) = " + str(test_q_values.max().item()))
-
         return action
     
     def learn(self, memory, batch_size):
@@ -101,8 +94,7 @@ class Agent():
         # Calculate loss from optimal actions and taken actions
         loss = self.loss_fn(q_values, expected_q_values.float())
         
-        # 2% chance to log loss (hacky version of periodic logging)
-        #if torch.rand(1)[0] > 0.98:
+        # Log losses
         self.losses.append(loss.item())
 
         # Optimize
@@ -110,15 +102,21 @@ class Agent():
         loss.backward()
         self.optimizer.step()
 
-    def save(self, file, epsilon, rewards):
+    def save(self, file, epsilon, rewards, wins, damage_done, damage_taken):
+
         checkpoint = {'model': self.model.state_dict(),
                       'optimizer': self.optimizer.state_dict(),
                       'epsilon': epsilon,
                       'rewards': rewards,
-                      'losses': self.losses}
+                      'losses': self.losses,
+                      'wins': wins,
+                      'damage_done': damage_done,
+                      'damage_taken': damage_taken}
+        
         torch.save(checkpoint, file)
 
     def load(self, file):
+
         checkpoint = torch.load(file, map_location=self.device)
 
         self.model.load_state_dict(checkpoint['model'])         # Load current DNN weights

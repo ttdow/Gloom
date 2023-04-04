@@ -264,9 +264,9 @@ def main():
                 epsilon = max(epsilon * EPSILON_DECAY, EPSILON_MIN)
 
                 # Log play and opponent health
-                playerHP = state[0]
+                playerHP = state[0] * 100
                 damage_taken.append(100 - playerHP)
-                opponentHP = state[65]
+                opponentHP = state[65] * 100
                 damage_done.append(100 - opponentHP)
 
                 # Log winner
@@ -289,9 +289,8 @@ def main():
 
         # Save the model every 50 episodes
         if episode > 0 and episode % 50 == 0:
-            # Save this model
             print("Saving checkpoint at episode " + str(episode))
-            agent.save('./test.pt', epsilon, rewards)
+            agent.save('./test.pt', epsilon, rewards, wins, damage_done, damage_taken)
 
         print("------------------------------")
 
