@@ -3,6 +3,7 @@ import time
 import random
 import sys
 import gc
+from tqdm import tqdm
 
 import torch
 import gym
@@ -14,6 +15,7 @@ class ReplayMemory():
     def __init__(self, capacity):
         self.capacity = capacity
         self.memory = []
+        self.priority = []
         self.position = 0
 
     def __len__(self) -> int:
@@ -24,6 +26,7 @@ class ReplayMemory():
         # Make more room in memory if needed
         if len(self.memory) < self.capacity:
             self.memory.append(None)
+            self.priority.append(None)
 
         # Not sure why this happens        
         if type(state) != np.ndarray:
@@ -32,6 +35,10 @@ class ReplayMemory():
         # Convert data from ndarray to tensor for ease of use
         state = torch.from_numpy(state).float().to(agent.device)
         next_state = torch.from_numpy(next_state).float().to(agent.device)
+
+        # Learn from last state, action transition
+        priority = agent.prioritize(state, action, next_state, reward, done)
+        self.priority[self.position] = priority
 
         # Save a new memory to circular buffer
         self.memory[self.position] = (state, action, next_state, reward, done)
@@ -165,7 +172,7 @@ def main():
 
     # Setup epsilon values for explore/exploit calcs
     EPSILON_MAX = 1.0
-    EPSILON_DECAY = 0.98477
+    EPSILON_DECAY = 0.9847666521
     EPSILON_MIN = 0.01
     epsilon = EPSILON_MAX
 
@@ -198,7 +205,7 @@ def main():
     old_time = time.time()
 
     # Training loop - loop until n_episodes are complete
-    for episode in range(n_episodes+1):
+    for episode in tqdm(range(n_episodes+1)):
 
         # Reset env for next episode
         state = env.reset(p2=Machete)

@@ -14,6 +14,7 @@ class ReplayMemory():
     def __init__(self, capacity):
         self.capacity = capacity
         self.memory = []
+        self.priority = []
         self.position = 0
 
     def __len__(self) -> int:
@@ -24,6 +25,7 @@ class ReplayMemory():
         # Make more room in memory if needed
         if len(self.memory) < self.capacity:
             self.memory.append(None)
+            self.priority.append(None)
 
         # Not sure why this happens        
         if type(state) != np.ndarray:
@@ -32,6 +34,10 @@ class ReplayMemory():
         # Convert data from ndarray to tensor for ease of use
         state = torch.from_numpy(state).float().to(agent.device)
         next_state = torch.from_numpy(next_state).float().to(agent.device)
+
+        # Learn from last state, action transition
+        priority = agent.prioritize(state, action, next_state, reward, done)
+        self.priority[self.position] = priority
 
         # Save a new memory to circular buffer
         self.memory[self.position] = (state, action, next_state, reward, done)
@@ -59,7 +65,7 @@ def GetDistance(env_state):
     dist = abs(playerX - opponentX) * 960
 
     return int(dist)
-    
+
 def calc_reward(env, env_state, action, next_env_state, prev_opp_state, opp_state, done):
 
     # Existential malus
@@ -77,7 +83,7 @@ def calc_reward(env, env_state, action, next_env_state, prev_opp_state, opp_stat
         else:
             reward -= 1000
 
-    return reward
+    return reward    
 
 def main():
 
@@ -110,24 +116,30 @@ def main():
 
     # Setup epsilon values for explore/exploit calcs
     EPSILON_MAX = 0.95
-    EPSILON_DECAY = 0.9995
-    EPSILON_MIN = 0.05
+    EPSILON_DECAY = 0.985
+    EPSILON_MIN = 0.01
     epsilon = EPSILON_MAX
 
     # Initialize agent and experience replay memory
     agent = Agent(state.shape[0], len(action_vecs))
     memory = ReplayMemory(100000)
 
+    # Initialize logs
+    rewards = []
+    damage_done = []
+    damage_taken = []
+    wins = 0
+
     # Load model if it exists
     if file != "":
-        epsilon = agent.load(file)
+        epsilon, rewards = agent.load(file)
         print("Model: " + file + " loaded.")
 
     # Hyperparameters
     batch_size = 512               # Experience replay batch size per round
-    n_episodes = 1000              # Number of training episodes
+    n_episodes = 100               # Number of training episodes
     n_rounds = 3                   # Round per episode
-    targetDNN_soft_update_freq = 5 # Target network soft update frequency
+    targetDNN_soft_update_freq = 1 # Target network soft update frequency
 
     # Flag for round finished
     done = False
@@ -136,11 +148,8 @@ def main():
     frame_counter = 0
     old_time = time.time()
 
-    # Initialize reward log
-    rewards = []
-
     # Training loop - loop until n_episodes are complete
-    for episode in range(n_episodes):
+    for episode in range(n_episodes+1):
 
         # Reset env for next episode
         state = env.reset(p2=Machete)
@@ -205,12 +214,22 @@ def main():
                 # Update epsilon for next round
                 epsilon = max(epsilon * EPSILON_DECAY, EPSILON_MIN)
 
+                # Log player and opponent health
+                playerHP = state[0]
+                damage_taken.append(100 - playerHP)
+                opponentHP = state[65]
+                damage_done.append(100 - opponentHP)
+
+                # Log winner
+                if playerHP > opponentHP:
+                    wins += 1
+
                 # Setup for the next round
                 round += 1
                 state = env.reset(p2=Machete)
 
-        # Only update target network periodically
-        if episode > 0 and targetDNN_soft_update_freq % episode == 0:
+        # Only update target network at the end of an episode
+        if episode > 0 and episode % targetDNN_soft_update_freq == 0:
             agent.soft_update_target_network()
 
         print("Epsilon: " + str(epsilon))

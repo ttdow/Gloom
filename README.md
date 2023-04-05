@@ -46,6 +46,7 @@
 </ul>
 
 ----- PRIORITY REPLAY BUFFER -----
+<s>
 <ol>
 <li>Modify or overload the learn function so it can take 1 or batch_size experiences</li>
 <li>Call learn on each (state, action) transition during the training loop to calculate the expected Q-value every time</li>
@@ -56,6 +57,7 @@
 	priority = (TD_error + epsilon) ** alpha, where epsilon is some small positive constant and alpha is a hyperparameter
 		controlling the degree of prioritization</li>
 </ol>
+</s>
 
 ----- DUELING DEEP Q NETWORK -----
 <ol>
