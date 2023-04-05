@@ -75,10 +75,10 @@ def calc_reward(env, env_state, action, next_env_state, prev_opp_state, opp_stat
     if type(env_state) != np.ndarray:
         env_state = env_state[0]
 
-    # ------------------- Huge incentive for downs ----------------------------
+    # ---------------------- Incentive for downs ------------------------------
     if type(opp_state) != str:
         if opp_state.equals(env.getP2().gateway.jvm.enumerate.State.DOWN) and opp_state != prev_opp_state:
-            reward += 1000
+            reward += 100
 
     player_old_HP = env_state[0]
     player_new_HP = next_env_state[0]
@@ -267,8 +267,7 @@ def main():
                 old_time = new_time
                 frame_counter = 0
 
-                # Update epsilon for next round
-                epsilon = max(epsilon * EPSILON_DECAY, EPSILON_MIN)
+                
 
                 # Log play and opponent health
                 playerHP = state[0] * 100
@@ -291,11 +290,14 @@ def main():
         print("Epsilon: " + str(epsilon))
         print("Total Reward: " + str(total_reward))
 
+        # Update epsilon for next epsiode
+        epsilon = max(epsilon - 0.01, EPSILON_MIN)
+
         # Log total reward of episode for
         rewards.append(total_reward)
 
         # Save the model every 50 episodes
-        if episode > 0 and episode % 50 == 0:
+        if episode > 0 and episode % 25 == 0:
             print("Saving checkpoint at episode " + str(episode))
             agent.save('./test.pt', epsilon, rewards, wins, damage_done, damage_taken)
 
