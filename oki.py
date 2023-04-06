@@ -115,9 +115,11 @@ def main():
     state = env.reset(p2=WakeUp)
 
     # Setup epsilon values for explore/exploit calcs
-    EPSILON_MAX = 0.95
-    EPSILON_DECAY = 0.99999975
-    EPSILON_MIN = 0.05
+    EPSILON_MAX = 0.80
+    EPSILON_DECAY = 0.995
+    EPSILON_MIN = 0.20
+    #EPSILON_DECAY = 0.99999975
+    #EPSILON_MIN = 0.80
     epsilon = EPSILON_MAX
 
     # Initialize agent and experience replay memory
@@ -129,13 +131,13 @@ def main():
     rewards = []
     actions = []
 
-    if True:
-        _, rewards = agent.load("oki.pt")
+    if False:
+        epsilon, rewards = agent.load("oki_011.pt")
         print("Model: " + file + " loaded.")
 
     # Hyperparameters
     batch_size = 128
-    n_episodes = 100
+    n_episodes = 300
     n_rounds = 3
 
 
@@ -143,8 +145,8 @@ def main():
     done = False
 
     #Training loop
-    player_hp_weight = 1.0
-    opp_hp_weight = 0.25
+    player_hp_weight = 1
+    opp_hp_weight = 1
     for episode in range(n_episodes):
         state = env.reset(p2 = WakeUp)
         round = 0
@@ -177,14 +179,14 @@ def main():
                 next_state, reward, done, _ = env.step(action)
                 reward = 0
                 if len(prev_state) == 143 and len(state) == 143:
-                    reward = (opp_hp_weight * (prev_state[65] - state[65])) - (player_hp_weight * (prev_state[0] - state[0]))
+                    reward = (opp_hp_weight * (state[65] - next_state[65])) - (player_hp_weight * (state[0] - next_state[0])) - (1/800)
                 #print('reward: ', reward)
                 total_reward += reward
                 memory.push(state, action, next_state, reward, done, agent)
                 agent.learn(memory, batch_size)
 
                 epsilon = max(epsilon * EPSILON_DECAY, EPSILON_MIN)
-                if action_count == 60:
+                if action_count == 90:
                     #print('TRAINING STOP')
                     training = False
                     action_count = 0
@@ -205,7 +207,7 @@ def main():
         print("Total reward: " + str(total_reward))
         rewards.append(total_reward)
         if episode > 0 and episode % 1 == 0:
-            agent.save('./oki.pt', epsilon, rewards)
+            agent.save('./oki_013.pt', epsilon, rewards)
 
     #agent.save('./oki_checkpoint.pt')
 

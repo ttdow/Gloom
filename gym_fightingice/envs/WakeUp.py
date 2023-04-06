@@ -105,7 +105,6 @@ class WakeUp(object):
         if opp_state.equals(self.gateway.jvm.enumerate.State.AIR):
             self.cc.commandCall("STAND_F_D_DFA")
         else:
-            print('MASH')
             e = random.uniform(0,1)
             if e <= 0.5:
               self.cc.commandCall("A")
