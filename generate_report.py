@@ -19,7 +19,7 @@ def main():
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     neutral_file = "neutral.pt"
-    oki_file = "oki_011.pt"
+    oki_file = "oki_017.pt"
 
     neutral_checkpoint = torch.load(neutral_file, map_location = device)
     oki_checkpoint = torch.load(oki_file, map_location = device)

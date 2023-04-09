@@ -101,6 +101,7 @@ def main():
 
     # Setup action space
     _actions = "AIR AIR_A AIR_B AIR_D_DB_BA AIR_D_DB_BB AIR_D_DF_FA AIR_D_DF_FB AIR_DA AIR_DB AIR_F_D_DFA AIR_F_D_DFB AIR_FA AIR_FB AIR_GUARD AIR_GUARD_RECOV AIR_RECOV AIR_UA AIR_UB BACK_JUMP BACK_STEP CHANGE_DOWN CROUCH CROUCH_A CROUCH_B CROUCH_FA CROUCH_FB CROUCH_GUARD CROUCH_GUARD_RECOV CROUCH_RECOV DASH DOWN FOR_JUMP FORWARD_WALK JUMP LANDING NEUTRAL RISE STAND STAND_A STAND_B STAND_D_DB_BA STAND_D_DB_BB STAND_D_DF_FA STAND_D_DF_FB STAND_D_DF_FC STAND_F_D_DFA STAND_F_D_DFB STAND_FA STAND_FB STAND_GUARD STAND_GUARD_RECOV STAND_RECOV THROW_A THROW_B THROW_HIT THROW_SUFFER"
+    #print(_actions.index("STAND_D_DF_FA"))
     action_strs = _actions.split(" ")
     action_vecs = []
 
@@ -116,8 +117,8 @@ def main():
 
     # Setup epsilon values for explore/exploit calcs
     EPSILON_MAX = 0.80
-    EPSILON_DECAY = 0.995
-    EPSILON_MIN = 0.20
+    EPSILON_DECAY = 0.95
+    EPSILON_MIN = 0.00
     #EPSILON_DECAY = 0.99999975
     #EPSILON_MIN = 0.80
     epsilon = EPSILON_MAX
@@ -132,12 +133,12 @@ def main():
     actions = []
 
     if False:
-        epsilon, rewards = agent.load("oki_011.pt")
+        epsilon, rewards = agent.load("oki_017.pt")
         print("Model: " + file + " loaded.")
 
     # Hyperparameters
     batch_size = 128
-    n_episodes = 300
+    n_episodes = 1000
     n_rounds = 3
 
 
@@ -145,8 +146,8 @@ def main():
     done = False
 
     #Training loop
-    player_hp_weight = 1
-    opp_hp_weight = 1
+    player_hp_weight = 20
+    opp_hp_weight = 10
     for episode in range(n_episodes):
         state = env.reset(p2 = WakeUp)
         round = 0
@@ -158,6 +159,7 @@ def main():
         opp_state = -1
 
         training = False
+        sweep = False
         action_count = 0
         episode_actions = []
         while round < n_rounds:
@@ -168,7 +170,9 @@ def main():
             if type(opp_state) != str and type(prev_opp_state) != str and type(opp_state) != int and type(prev_opp_state) != int:
                 if opp_state.equals(env.getP2().gateway.jvm.enumerate.State.DOWN) and training == False:
                     #print('TRAINING START')
+                    sweep = False
                     training = True
+
             #print(state [0], state[1], state[2]) 
             if training == True:
                 action_count += 1
@@ -179,27 +183,35 @@ def main():
                 next_state, reward, done, _ = env.step(action)
                 reward = 0
                 if len(prev_state) == 143 and len(state) == 143:
-                    reward = (opp_hp_weight * (state[65] - next_state[65])) - (player_hp_weight * (state[0] - next_state[0])) - (1/800)
+                    reward = (opp_hp_weight * (state[65] - next_state[65])) - (player_hp_weight * (state[0] - next_state[0])) - (1/90)
                 #print('reward: ', reward)
                 total_reward += reward
                 memory.push(state, action, next_state, reward, done, agent)
                 agent.learn(memory, batch_size)
 
                 epsilon = max(epsilon * EPSILON_DECAY, EPSILON_MIN)
-                if action_count == 90:
-                    #print('TRAINING STOP')
+                if action_count == 90 or (state[0] - next_state[0] > 0):
+                    print('TRAINING STOP')
                     training = False
                     action_count = 0
             elif training == False:
                 action = agent.act_not_training(state, epsilon)
+                if action == 25:
+                    sweep = True
                 #env.getP2().setAction(action)
                 next_state, reward, done, _ = env.step(action)
+                if len(state) == 143:
+                    reward = (opp_hp_weight * (state[65] - next_state[65])) - (player_hp_weight * (state[0] - next_state[0]))
+                    if reward != 0.0 and sweep == False:
+                        print(reward)
+                        total_reward += reward
+                        memory.push(state, action, next_state, reward, done, agent)
+                        agent.learn(memory, batch_size)
+
             # Update opponent's last state
             prev_state = state
             prev_opp_state = opp_state
-
             state = next_state
-
             if done:
                 round += 1
                 state = env.reset(p2=WakeUp)
@@ -207,7 +219,7 @@ def main():
         print("Total reward: " + str(total_reward))
         rewards.append(total_reward)
         if episode > 0 and episode % 1 == 0:
-            agent.save('./oki_013.pt', epsilon, rewards)
+            agent.save('./oki_018.pt', epsilon, rewards)
 
     #agent.save('./oki_checkpoint.pt')
 
