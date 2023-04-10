@@ -307,8 +307,6 @@ def main():
                 old_time = new_time
                 frame_counter = 0
 
-
-
                 ## Update Q-values in a batch
                 #agent.learn(memory, batch_size)
 

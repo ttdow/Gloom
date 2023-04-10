@@ -10,6 +10,7 @@ class OkiAgent():
         self.n_actions = n_actions
 
         self.device = torch.device("cpu") #torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        print(self.device)
         self.model = DNN().to(self.device)       # Used for calculating current Q-values during training 
         self.target =  copy.deepcopy(self.model) # Used for calculating target Q-values during training
 

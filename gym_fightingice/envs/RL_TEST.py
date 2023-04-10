@@ -101,7 +101,7 @@ class RLTEST(object):
     self.cc.skillCancel()
     
     #self.cc.commandCall("")
-    print(self.action_to_perform, actions_list[self.action_to_perform])
+    #print(self.action_to_perform, actions_list[self.action_to_perform])
     self.cc.commandCall(actions_list[self.action_to_perform])
     #if my_state.equals(self.gateway.jvm.enumerate.State.DOWN):
     #    self.cc.commandCall("STAND_F_D_DFB")

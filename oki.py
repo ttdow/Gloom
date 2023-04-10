@@ -116,8 +116,8 @@ def main():
     state = env.reset(p2=WakeUp)
 
     # Setup epsilon values for explore/exploit calcs
-    EPSILON_MAX = 0.80
-    EPSILON_DECAY = 0.95
+    EPSILON_MAX = 0.99
+    EPSILON_DECAY = 0.9999995
     EPSILON_MIN = 0.00
     #EPSILON_DECAY = 0.99999975
     #EPSILON_MIN = 0.80
@@ -132,8 +132,8 @@ def main():
     rewards = []
     actions = []
 
-    if False:
-        epsilon, rewards = agent.load("oki_017.pt")
+    if True:
+        epsilon, rewards = agent.load("oki_019.pt")
         print("Model: " + file + " loaded.")
 
     # Hyperparameters
@@ -146,7 +146,7 @@ def main():
     done = False
 
     #Training loop
-    player_hp_weight = 20
+    player_hp_weight = 10
     opp_hp_weight = 10
     for episode in range(n_episodes):
         state = env.reset(p2 = WakeUp)
@@ -183,7 +183,7 @@ def main():
                 next_state, reward, done, _ = env.step(action)
                 reward = 0
                 if len(prev_state) == 143 and len(state) == 143:
-                    reward = (opp_hp_weight * (state[65] - next_state[65])) - (player_hp_weight * (state[0] - next_state[0])) - (1/90)
+                    reward = (opp_hp_weight * (state[65] - next_state[65])) - (player_hp_weight * (state[0] - next_state[0])) - (1/900)
                 #print('reward: ', reward)
                 total_reward += reward
                 memory.push(state, action, next_state, reward, done, agent)
@@ -217,11 +217,10 @@ def main():
                 state = env.reset(p2=WakeUp)
 
         print("Total reward: " + str(total_reward))
+        print("Epsilon: " + str(epsilon))
         rewards.append(total_reward)
         if episode > 0 and episode % 1 == 0:
-            agent.save('./oki_018.pt', epsilon, rewards)
-
-    #agent.save('./oki_checkpoint.pt')
+            agent.save('./oki_019.pt', epsilon, rewards)
 
     env.close()
     exit()
