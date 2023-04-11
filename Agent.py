@@ -20,10 +20,10 @@ class Agent():
             p.requires_grad = False
 
         # Hyperparameters
-        self.learning_rate = 1e-3   # Learning rate used for gradient descent
-        self.gamma = 0.99           # Discount rate for future Q-value estimates
-        self.tau = 0.01             # Soft update coefficient for target network
-        self.alpha = 0.6            # Controls degree of prioritization
+        self.learning_rate = 0.0000625   # Learning rate used for gradient descent
+        self.gamma = 0.99                # Discount rate for future Q-value estimates
+        self.tau = 0.01                  # Soft update coefficient for target network
+        self.alpha = 0.6                 # Controls degree of prioritization
 
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate)
         self.loss_fn = torch.nn.MSELoss()
@@ -81,30 +81,33 @@ class Agent():
 
         return abs(TDError)
     
-    def learn(self, memory, batch_size):
+    def learn(self, memory, batch_size, round_end):
 
         # Ensure their are enough memories for a batch
-        if len(memory) < batch_size:
+        mem_size = len(memory)
+        if mem_size < batch_size:
             return
 
-        # Unpack memory priorities from experience replay buffer
-        priorities = memory.priority
-        priorities = torch.tensor(list(priorities))
-        priorities = priorities.detach().numpy()
+        # If memory not full, only take up to the memory size of priorities
+        if mem_size < memory.capacity:
+            priorities = memory.priority[:mem_size]
+        else:
+            priorities = memory.priority
 
         # Calculate a probability using the priority value
-        probs = priorities / priorities.sum()
+        priorities_sum = priorities.sum()
+        probs = priorities / priorities_sum
 
         # Grab a random selection of memories using each of their probabilities
-        indices = np.random.choice(len(memory), batch_size, p=probs, replace=False)
+        indices = np.random.choice(mem_size, batch_size, p=probs, replace=False)
 
         # Stack the selected memories into a batch
         batch = [memory.memory[i] for i in indices]
 
-        # Update priorities of selected memories
+        # Update priorities of selected memories to decrease future priority
         for i in indices:
             memory.priority[i] = (memory.priority[i] + 1e-5) ** self.alpha
- 
+
         # Reorganize batch data for processing
         states, actions, next_states, rewards, dones = zip(*batch)
         
@@ -130,12 +133,15 @@ class Agent():
         loss = self.loss_fn(q_values, expected_q_values.float())
 
         # Log loss
-        self.losses.append(loss.item())
+        if round_end:
+            self.losses.append(loss.item())
 
         # Optimize
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
+
+        return
 
     def save(self, file, epsilon, rewards, wins, damage_done, damage_taken):
 

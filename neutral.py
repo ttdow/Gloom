@@ -15,7 +15,7 @@ class ReplayMemory():
     def __init__(self, capacity):
         self.capacity = capacity
         self.memory = []
-        self.priority = []
+        self.priority = np.empty(self.capacity)
         self.position = 0
 
     def __len__(self) -> int:
@@ -26,17 +26,16 @@ class ReplayMemory():
         # Make more room in memory if needed
         if len(self.memory) < self.capacity:
             self.memory.append(None)
-            self.priority.append(None)
 
         # Not sure why this happens        
         if type(state) != np.ndarray:
-                state = state[0]
+            state = state[0]
 
         # Convert data from ndarray to tensor for ease of use
         state = torch.from_numpy(state).float().to(agent.device)
         next_state = torch.from_numpy(next_state).float().to(agent.device)
 
-        # Learn from last state, action transition
+        # Calculate importance/priority of this memory (i.e. td error)
         priority = agent.prioritize(state, action, next_state, reward, done)
         self.priority[self.position] = priority
 
@@ -172,8 +171,8 @@ def main():
 
     # Setup epsilon values for explore/exploit calcs
     EPSILON_MAX = 1.0
-    EPSILON_DECAY = 0.9847666521
-    EPSILON_MIN = 0.01
+    EPSILON_DECAY = 0.99995
+    EPSILON_MIN = 0.10
     epsilon = EPSILON_MAX
 
     # Initialize agent and experience replay memory
@@ -188,14 +187,14 @@ def main():
 
     # Load model if it exists
     if file != "":
-        epsilon, rewards = agent.load(file)
+        _, rewards = agent.load(file)
         print("Model: " + file + " loaded.")
 
     # Hyperparameters
-    batch_size = 32                # Experience replay batch size per round
-    n_episodes = 150               # Number of training episodes
+    batch_size = 16                # Experience replay batch size per round
+    n_episodes = 100000               # Number of training episodes
     n_rounds = 3                   # Round per episode
-    targetDNN_soft_update_freq = 1 # Target network soft update frequency
+    targetDNN_soft_update_freq = 2 # Target network soft update frequency
 
     # Flag for round finished
     done = False
@@ -218,7 +217,7 @@ def main():
         # Round timing data
         old_time = time.time()
 
-        print("Episode: " + str(episode))
+        #print("Episode: " + str(episode))
 
         # Loop until n_rounds are complete
         while round < n_rounds:
@@ -252,7 +251,7 @@ def main():
             memory.push(state, action, next_state, reward, done, agent)
 
             # Update Q-values
-            agent.learn(memory, batch_size)
+            agent.learn(memory, batch_size, done)
 
             # Update the state for next frame
             state = next_state
@@ -266,8 +265,6 @@ def main():
                 print(str(frame_counter) + " frames / " + str(dt) + " (FPS: " + str(frame_counter / dt) + ")")
                 old_time = new_time
                 frame_counter = 0
-
-                
 
                 # Log play and opponent health
                 playerHP = state[0] * 100
@@ -291,23 +288,27 @@ def main():
         print("Total Reward: " + str(total_reward))
 
         # Update epsilon for next epsiode
-        epsilon = max(epsilon - 0.01, EPSILON_MIN)
+        epsilon = max(epsilon * EPSILON_DECAY, EPSILON_MIN)
 
         # Log total reward of episode for
         rewards.append(total_reward)
 
-        # Save the model every 50 episodes
-        if episode > 0 and episode % 25 == 0:
+        # Save the model every 25 episodes
+        if episode % 25 == 0 and episode > 0:
             print("Saving checkpoint at episode " + str(episode))
-            agent.save('./test.pt', epsilon, rewards, wins, damage_done, damage_taken)
+            agent.save('./test2.pt', epsilon, rewards, wins, damage_done, damage_taken)
 
-        print("------------------------------")
+        #print("------------------------------")
 
         # Force garbage collection between episodes
         gc.collect()
 
     # Re-enable garbage collection
     gc.enable()
+
+    # Terminate
+    env.close()
+    exit()
 
 if __name__ == "__main__":
     main()
