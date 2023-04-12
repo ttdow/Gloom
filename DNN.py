@@ -8,14 +8,38 @@ class DNN(nn.Module):
 
         self.n_obs = 143
         self.n_act = 56
+        self.hidden_size = 128
 
-        self.fc1 = nn.Linear(self.n_obs, 128)
-        self.fc2 = nn.Linear(128, 64)
-        self.fc3 = nn.Linear(64, self.n_act)
+        # Input layer
+        self.fc1 = nn.Linear(self.n_obs, self.hidden_size)
+        
+        # Advantage (actions) network branch
+        self.fc2_adv = nn.Linear(self.hidden_size, self.hidden_size)
+        self.advantage = nn.Linear(self.hidden_size, self.n_act)
+
+        # Value (states) network branch
+        self.fc2_val = nn.Linear(self.hidden_size, self.hidden_size)
+        self.value = nn.Linear(self.hidden_size, 1)
 
     def forward(self, x):
-        x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
-        x = self.fc3(x)
 
+        # Input layer
+        x = F.relu(self.fc1(x))
+
+        # Advantage (actions) network branch
+        adv = F.relu(self.fc2_adv(x))
+        adv = self.advantage(adv)
+
+        # Value (states) network branch
+        val = F.relu(self.fc2_val(x))
+        val = self.value(val)#.expand(x.size(0), self.advantage.out_features)
+
+        # Normalize advantage values about 0 and add to state value for each possible 
+        # action to calculate the Q-values
+        if x.ndim > 1: # For batches (i.e. learning)
+            x = val + adv - adv.mean(1).unsqueeze(1).expand(x.size(0), self.advantage.out_features)
+        else: # For single values (i.e. action selection and priority calculation)
+            x = val + adv - adv.mean(0)
+
+        # Return Q-values of each possible action given state x
         return x

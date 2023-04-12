@@ -88,7 +88,7 @@ class Agent():
         if mem_size < batch_size:
             return
 
-        # If memory not full, only take up to the memory size of priorities
+        # If memory not full, only take up to the current memory size of priorities
         if mem_size < memory.capacity:
             priorities = memory.priority[:mem_size]
         else:
