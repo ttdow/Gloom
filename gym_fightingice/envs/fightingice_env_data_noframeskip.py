@@ -181,7 +181,6 @@ class FightingiceEnv_Data_NoFrameskip(gym.Env):
             self.game_started = True
             self.round_num = 0
         except Exception as e:
-            print("exception in start gateway")
             print(e)
 
     def _close_gateway(self):
@@ -197,6 +196,7 @@ class FightingiceEnv_Data_NoFrameskip(gym.Env):
         self.game_started = False
 
     def reset(self, p2=RandomAI):
+
         try:
             # start java game if game is not started
             if self.game_started is False:
@@ -220,11 +220,12 @@ class FightingiceEnv_Data_NoFrameskip(gym.Env):
 
             # just reset is anything ok
             self.pipe.send("reset")
+
             self.round_num += 1
             obs = self.pipe.recv()
+
             return obs
         except Exception as e:
-            print("exception in reset")
             print(e)
 
     def step(self, action):
@@ -236,19 +237,13 @@ class FightingiceEnv_Data_NoFrameskip(gym.Env):
             dict["pre_game_crashed"] = True
             return self.reset(), 0, None, dict
 
-        #action = 1
         self.pipe.send(["step", action])
 
-        # Slow boy
-        #t0 = time.time()
         new_obs, reward, done, info = self.pipe.recv()
-        #t1 = time.time()
-        #print("dt = " + str((t1-t0)*1000.0))
 
         return new_obs, reward, done, {}
 
     def render(self, mode='human'):
-        # no need
         pass
 
     def close(self):
@@ -261,13 +256,4 @@ class FightingiceEnv_Data_NoFrameskip(gym.Env):
 
 if __name__ == "__main__":
     
-    #env = FightingiceEnv_Data_Frameskip()
-
-    #while True:
-        #obs = env.reset()
-        #done = False
-
-        #while not done:
-           #new_obs, reward, done, _ = env.step(random.randint(0, 10))
-
-    print("finish")
+    print("Not implemented.")

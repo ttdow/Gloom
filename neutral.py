@@ -270,7 +270,7 @@ def calc_reward(env, env_state, action, next_env_state, prev_opp_state, opp_stat
         env_state = env_state[0]
 
     # ---------------------- Incentive for downs ------------------------------
-    if type(opp_state) != str:
+    if type(opp_state) != str and opp_state != None:
         if opp_state.equals(env.getP2().gateway.jvm.enumerate.State.DOWN) and opp_state != prev_opp_state:
             reward += 100
 
@@ -360,6 +360,7 @@ def main():
         action_vecs.append(v)
 
     # Setup observation space
+    opponent = "Machete"
     env = gym.make("FightingiceDataNoFrameskip-v0", java_env_path="", port=4242, freq_restart_java=100000)
     state = env.reset(p2=Machete)
 
@@ -372,6 +373,9 @@ def main():
     # Training parameters
     n_episodes = 5                 # Number of training episodes
     n_rounds = 3                   # Round per episode
+
+    # Validation parameters
+    n_valid_episodes = 3
 
     # Hyperparameters
     batch_size = 16                # Experience replay batch size per round
@@ -416,7 +420,7 @@ def main():
             damage_taken = []
             wins = 0
 
-            # Training loop - loop until n_episodes are complete
+            # ------------------------- TRAINING LOOP -------------------------
             for episode in tqdm(range(n_episodes)):
 
                 # Reset env for next episode
@@ -449,7 +453,7 @@ def main():
                     next_state, reward, done, _ = env.step(action)
 
                     # Get opponent's current state from env (STAND, CROUCH, AIR, DOWN)
-                    opp_state = env.getP2().state
+                    opp_state = None#env.getP2().state # TODO: Temporarily turn off for testing .jar AI file
 
                     # Calculate reward function based on states and action
                     reward = calc_reward(env, state, action, next_state, prev_opp_state, opp_state, done)
@@ -516,9 +520,92 @@ def main():
                 # Force garbage collection between episodes
                 gc.collect()
 
+                # Track wins for validation
+                wins = 0
+
+                # --------------------- VALIDATION LOOP -----------------------
+                for episode in tqdm(range(n_valid_episodes)):
+
+                    # Reset env for next episode
+                    state = env.reset(p2=opponent)
+                    round = 0
+                    #total_reward = 0
+
+                    # Reset opponent's state for next episode
+                    prev_opp_state = -1
+
+                    # Round timing data
+                    #old_time = time.time()
+
+                    #print("Episode: " + str(episode))
+
+                    # Loop until n_rounds are complete
+                    while round < n_rounds:
+
+                        # Track frame rate
+                        #frame_counter += 1
+
+                        # Ensure the environment state is in the correct format
+                        if type(state) != np.ndarray:
+                            state = state[0]
+                
+                        # Get the next action
+                        action = agent.act(state, epsilon)
+
+                        # Step the environment with the selected action
+                        next_state, reward, done, _ = env.step(action)
+
+                        # Get opponent's current state from env (STAND, CROUCH, AIR, DOWN)
+                        opp_state = None#env.getP2().state # TODO: Temporarily turn off for testing .jar AI file
+
+                        # Calculate reward function based on states and action
+                        reward = calc_reward(env, state, action, next_state, prev_opp_state, opp_state, done)
+
+                        # Update opponent's last state
+                        prev_opp_state = opp_state
+
+                        # Save total reward for the episode for logging
+                        #total_reward += reward
+
+                        # Add the last state, action transition to the agent's memory cache
+                        #memory.push(state, action, next_state, reward, done, agent)
+
+                        # Update Q-values
+                        #agent.learn(memory, batch_size, done)
+
+                        # Update the state for next frame
+                        state = next_state
+
+                        # Check if round is complete
+                        if done:
+                            
+                            # Calculate average frame rate of round
+                            #new_time = time.time()
+                            #dt = new_time - old_time
+                            #print(str(frame_counter) + " frames / " + str(dt) + " (FPS: " + str(frame_counter / dt) + ")")
+                            #old_time = new_time
+                            #frame_counter = 0
+
+                            # Log play and opponent health
+                            #playerHP = state[0] * 100
+                            #damage_taken.append(100 - playerHP)
+                            #opponentHP = state[65] * 100
+                            #damage_done.append(100 - opponentHP)
+
+                            # Log winner
+                            if playerHP > opponentHP:
+                                wins += 1
+
+                            # Setup for the next round
+                            round += 1
+                            state = env.reset(p2=opponent)
+
             # Save fitness value (reward, win_rate) for this genotype
             eho.update_phenotype(None, wins / n_episodes)
             print("Win rate: " + str(wins / n_episodes))
+
+            # Force garbage collection between genotypes
+            gc.collect()
 
         # Create a new generation using the outcomes of the previous generation
         eho.selection()
