@@ -21,6 +21,19 @@ class Genotype():
         self.tau = tau                  # Target network update rate
         self.alpha = alpha              # Priority decay rate
         self.n_layers = n_layers        # Hidden layers
+
+    def to_string(self):
+
+        out = ""
+        out += "Batch Size: " + str(self.batch_size) + "\n"
+        out += "Update Freq: " + str(self.update_freq) + "\n"
+        out += "Learning Rate: " + str(self.lr) + "\n"
+        out += "Gamma: " + str(self.gamma) + "\n"
+        out += "Tau: " + str(self.tau) + "\n"
+        out += "Alpha: " + str(self.alpha) + "\n"
+        out += "Hidden Layers: " + str(self.n_layers) + "\n"
+
+        return out
     
 class EHO():
     def __init__(self, batch_size, update_freq, lr, gamma, tau, alpha, n_layers):
@@ -50,8 +63,6 @@ class EHO():
             self.index = 0
 
     def populate(self):
-
-        print("here")
 
         # Create 9 more genotypes by mutating the progenitor
         for i in range(0, 9):
@@ -114,8 +125,49 @@ class EHO():
         # Return the mutated copy of the original genotype
         return genotype
     
-    def crossover(self):
-        return
+    def crossover(self, g0, g1):
+
+        child_genotype = Genotype()
+        coin_tosses = []
+        for i in range(7):
+            coin_tosses.append(random.randint(0, 1))
+
+        if coin_tosses[0] == 0:
+            child_genotype.batch_size = g0.batch_size
+        else:
+            child_genotype.batch_size = g1.batch_size
+
+        if coin_tosses[1] == 0:
+            child_genotype.update_freq = g0.update_freq
+        else:
+            child_genotype.update_freq = g1.update_freq
+
+        if coin_tosses[2] == 0:
+            child_genotype.lr = g0.lr
+        else:
+            child_genotype.lr = g1.lr
+
+        if coin_tosses[3] == 0:
+            child_genotype.gamma = g0.gamma
+        else:
+            child_genotype.gamma = g1.gamma
+
+        if coin_tosses[4] == 0:
+            child_genotype.tau = g0.tau
+        else:
+            child_genotype.tau = g1.tau
+
+        if coin_tosses[5] == 0:
+            child_genotype.alpha = g0.alpha
+        else:
+            child_genotype.alpha = g1.alpha
+
+        if coin_tosses[6] == 0:
+            child_genotype.n_layers = g0.n_layers
+        else:
+            child_genotype.n_layers = g1.n_layers
+
+        return child_genotype
     
     def selection(self):
 
@@ -127,6 +179,11 @@ class EHO():
         # Sort the genotypes by fitness values
         genotypes = self.genotypes
         sorted_genotypes = [x for _, x in sorted(zip(fitness, genotypes), reverse=True)]
+
+        print("Top 3 Selections: ")
+        print(sorted_genotypes[0].to_string())
+        print(sorted_genotypes[1].to_string())
+        print(sorted_genotypes[2].to_string())
 
         next_generation = []
 
@@ -313,7 +370,7 @@ def main():
     epsilon = EPSILON_MAX
 
     # Training parameters
-    n_episodes = 10                # Number of training episodes
+    n_episodes = 5                 # Number of training episodes
     n_rounds = 3                   # Round per episode
 
     # Hyperparameters
@@ -327,7 +384,7 @@ def main():
 
     # Setup evolutionary hyperparameter optimizer
     eho = EHO(batch_size, targetDNN_soft_update_freq, learning_rate, gamma, tau, alpha, n_layers)
-    n_generations = 10
+    n_generations = 3
 
     # Load model if it exists
     #if file != "":
@@ -341,10 +398,13 @@ def main():
     frame_counter = 0
     old_time = time.time()
 
+    # Generational loop - evolutionary hyperparameter optimization
     for generation in range(n_generations):
 
-        # Hyperparameter optimization loop - loop until n_generations are complete
+        # Train multiple hyperparameter genotypes in this generation
         for genotype in eho.genotypes:
+
+            print(genotype.to_string())
 
             # Initialize agent and experience replay memory
             agent = Agent(state.shape[0], len(action_vecs), genotype.lr, genotype.gamma, genotype.tau, genotype.alpha, genotype.n_layers)
@@ -458,10 +518,10 @@ def main():
 
             # Save fitness value (reward, win_rate) for this genotype
             eho.update_phenotype(None, wins / n_episodes)
+            print("Win rate: " + str(wins / n_episodes))
 
-        # TODO Add selection for next generation
-        # For now, print all phenotypes
-        print(eho.phenotypes)
+        # Create a new generation using the outcomes of the previous generation
+        eho.selection()
 
     # Save final checkpoint
     #print("Saving checkpoint at episode " + str(episode))
