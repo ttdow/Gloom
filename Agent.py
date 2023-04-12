@@ -6,24 +6,24 @@ import copy
 from DNN import DNN
 
 class Agent():
-    def __init__(self, n_states, n_actions):
+    def __init__(self, n_states, n_actions, lr, gamma, tau, alpha, n_layers):
 
         self.n_states = n_states
         self.n_actions = n_actions
 
         self.device = torch.device("cpu") #torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-        self.model = DNN().to(self.device)       # Used for calculating current Q-values during training 
-        self.target =  copy.deepcopy(self.model) # Used for calculating target Q-values during training
+        self.model = DNN(n_states, n_actions, n_layers).to(self.device)       # Used for calculating current Q-values during training 
+        self.target = copy.deepcopy(self.model)  # Used for calculating target Q-values during training
 
         # Freeze parameters in target network - we update the target network manually
         for p in self.target.parameters():
             p.requires_grad = False
 
         # Hyperparameters
-        self.learning_rate = 0.0000625   # Learning rate used for gradient descent
-        self.gamma = 0.99                # Discount rate for future Q-value estimates
-        self.tau = 0.01                  # Soft update coefficient for target network
-        self.alpha = 0.6                 # Controls degree of prioritization
+        self.learning_rate = lr # Learning rate used for gradient descent
+        self.gamma = gamma      # Discount rate for future Q-value estimates
+        self.tau = tau          # Soft update coefficient for target network
+        self.alpha = alpha      # Controls degree of prioritization
 
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate)
         self.loss_fn = torch.nn.MSELoss()

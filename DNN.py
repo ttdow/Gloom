@@ -3,12 +3,13 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 class DNN(nn.Module):
-    def __init__(self):
+    def __init__(self, n_states, n_actions, n_layers):
         super(DNN, self).__init__()
 
-        self.n_obs = 143
-        self.n_act = 56
+        self.n_obs = n_states
+        self.n_act = n_actions
         self.hidden_size = 128
+        self.n_layers = n_layers # TODO this doesn't change anything yet
 
         # Input layer
         self.fc1 = nn.Linear(self.n_obs, self.hidden_size)
