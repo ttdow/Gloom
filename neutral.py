@@ -171,8 +171,8 @@ def main():
 
     # Setup epsilon values for explore/exploit calcs
     EPSILON_MAX = 1.0
-    EPSILON_DECAY = 0.99995
-    EPSILON_MIN = 0.10
+    EPSILON_DECAY = 0.955
+    EPSILON_MIN = 0.01
     epsilon = EPSILON_MAX
 
     # Initialize agent and experience replay memory
@@ -192,7 +192,7 @@ def main():
 
     # Hyperparameters
     batch_size = 16                # Experience replay batch size per round
-    n_episodes = 100000               # Number of training episodes
+    n_episodes = 100               # Number of training episodes
     n_rounds = 3                   # Round per episode
     targetDNN_soft_update_freq = 2 # Target network soft update frequency
 
@@ -296,7 +296,7 @@ def main():
         # Save the model every 25 episodes
         if episode % 25 == 0 and episode > 0:
             print("Saving checkpoint at episode " + str(episode))
-            agent.save('./test2.pt', epsilon, rewards, wins, damage_done, damage_taken)
+            agent.save('./test3.pt', epsilon, rewards, wins, damage_done, damage_taken)
 
         #print("------------------------------")
 

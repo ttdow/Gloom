@@ -83,34 +83,52 @@ class Agent():
     
     def learn(self, memory, batch_size, round_end):
 
-        # Ensure their are enough memories for a batch
+        # Ensure their are enough memories for a multi_step batch (i.e. batch_size * 2)
         mem_size = len(memory)
-        if mem_size < batch_size:
+        double_batch = batch_size * 2
+        if mem_size <= double_batch:
             return
 
-        # If memory not full, only take up to the current memory size of priorities
+        # If memory not full, only take up to the current memory size of priorities - buffer
         if mem_size < memory.capacity:
-            priorities = memory.priority[:mem_size]
+            priorities = memory.priority[:mem_size - double_batch]
         else:
-            priorities = memory.priority
+            priorities = memory.priority[:double_batch]
 
         # Calculate a probability using the priority value
         priorities_sum = priorities.sum()
         probs = priorities / priorities_sum
 
-        # Grab a random selection of memories using each of their probabilities
-        indices = np.random.choice(mem_size, batch_size, p=probs, replace=False)
+        # Grab a random memory using the priority probability
+        idx = np.random.choice(mem_size - double_batch, 1, p=probs, replace=False)[0]
 
-        # Stack the selected memories into a batch
-        batch = [memory.memory[i] for i in indices]
+        # Stack the selected memory and the next batch_size * 2 memories in time in to a batch
+        transitions = [memory.memory[idx + i] for i in range(0, double_batch)]
 
-        # Update priorities of selected memories to decrease future priority
-        for i in indices:
-            memory.priority[i] = (memory.priority[i] + 1e-5) ** self.alpha
+        # Update priorities of the selected batch_size memories to decrease future priority
+        for i in range(0, batch_size):
+            memory.priority[idx + i] = (memory.priority[idx + i] + 1e-5) ** self.alpha
+
+        # Iterate through the first half of the list
+        for i in range(0, batch_size):
+
+            # Ensure we do not go out of bounds
+            #if i + batch_size >= len(transitions):
+            #    break;
+            
+            # Compound the reward of each memory using the next time delayed reward
+            # of the next batch_size memories
+            state, action, next_state, reward, done = transitions[i]
+            for j in range(i+1, i+batch_size):
+                _, _, next_state, r, _ = transitions[j]
+                reward += (self.gamma ** (j-i)) * r
+
+            # Resave the transitions with the new reward and the final state
+            transitions[i] = state, action, next_state, reward, done
 
         # Reorganize batch data for processing
-        states, actions, next_states, rewards, dones = zip(*batch)
-        
+        states, actions, next_states, rewards, dones = zip(*transitions[:batch_size-1])
+
         # Convert states from tuples of tensors to multi-dimensional tensors
         states = torch.stack(states, dim=0).to(self.device)
         next_states = torch.stack(next_states, dim=0).to(self.device)
