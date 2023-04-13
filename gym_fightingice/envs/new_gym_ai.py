@@ -89,6 +89,7 @@ class NewGymAI(object):
             opp = self.frameData.getCharacter(not self.player)
             if opp != None:
                 self.opponentState = opp.getState()
+                #print(self.opponentState)
 
             # Check if frame data is empty or the round is over 
             if self.frameData.getEmptyFlag() or self.frameData.getRemainingTime() <= 0:

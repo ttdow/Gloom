@@ -124,12 +124,13 @@ def main():
             # Track frame rate
             frame_counter += 1
 
-            opp_state = env.getP2().state
+            # Get opponent state from env (STAND, AIR, CROUCH, DOWN)
+            opp_state = env.getP1().getOpponentState()
 
+            # If the opponent state is DOWN switch to Oki model
             if type(opp_state) != str and type(prev_opp_state) != str and type(opp_state) != int and type(prev_opp_state) != int:
                 if opp_state.equals(env.getP2().gateway.jvm.enumerate.State.DOWN) and oki == False:
                     oki = True
-                    print(state)
 
             # Ensure the environment state is in the correct format
             if type(state) != np.ndarray:
@@ -155,7 +156,6 @@ def main():
 
                 # Watch for end of Oki mode
                 if action_count == 60:
-                    print('OKI STOP')
                     oki = False
                     action_count = 0
             
@@ -257,7 +257,7 @@ def main():
                     # Track frame rate
                     frame_counter += 1
 
-                    opp_state = env.getP2().state
+                    opp_state = env.getP1().getOpponentState()
 
                     if type(opp_state) != str and type(prev_opp_state) != str and type(opp_state) != int and type(prev_opp_state) != int:
                         if opp_state.equals(env.getP2().gateway.jvm.enumerate.State.DOWN) and oki == False:
@@ -308,7 +308,7 @@ def main():
 
                         # Setup for the next round
                         round += 1
-                        state = env.reset(p2=Machete)
+                        state = env.reset(p2=opponent)
                 # -------------------- END ROUND LOOP--------------------------
 
                 # Force garbage collection between episodes

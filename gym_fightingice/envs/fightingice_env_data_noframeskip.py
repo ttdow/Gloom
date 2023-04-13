@@ -155,6 +155,8 @@ class FightingiceEnv_Data_NoFrameskip(gym.Env):
                 self.gateway.java_gateway_server.getCallbackClient().getAddress(), python_port)
             self.manager = self.gateway.entry_point
 
+            print(self.manager)
+
             # create pipe between gym_env_api and python_ai for java env
             server, client = Pipe()
             self.pipe = server
@@ -172,10 +174,10 @@ class FightingiceEnv_Data_NoFrameskip(gym.Env):
                 self.manager.registerAI(self.p2.__class__.__name__, self.p2)
                 self.game_to_start = self.manager.createGame(
                     "ZEN", "ZEN", self.p1.__class__.__name__, self.p2.__class__.__name__, self.freq_restart_java)
-                print(self.p1.__class__.__name__)
 
-            self.game = Thread(target=game_thread,
-                            name="game_thread", args=(self, ))
+
+
+            self.game = Thread(target=game_thread, name="game_thread", args=(self, ))
             self.game.start()
 
             self.game_started = True
@@ -250,6 +252,9 @@ class FightingiceEnv_Data_NoFrameskip(gym.Env):
         if self.game_started:
             self._close_gateway()
             self._close_java_game()
+
+    def getP1(self):
+        return self.p1
 
     def getP2(self):
         return self.p2
