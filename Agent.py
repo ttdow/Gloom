@@ -93,10 +93,7 @@ class Agent():
             return
 
         # If memory not full, only take up to the current memory size of priorities - buffer
-        if mem_size < memory.capacity:
-            priorities = memory.priority[:mem_size - double_batch]
-        else:
-            priorities = memory.priority[:double_batch]
+        priorities = memory.priority[:mem_size - double_batch]
 
         # Calculate a probability using the priority value
         priorities_sum = priorities.sum()
