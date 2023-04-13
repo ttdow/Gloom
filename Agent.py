@@ -28,7 +28,7 @@ class Agent():
         self.alpha = alpha      # Controls degree of prioritization
 
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=0.001)
-        self.scheduler = CosineAnnealingLR(self.optimizer, T_max=150, eta_min=0.00001)
+        self.scheduler = CosineAnnealingLR(self.optimizer, T_max=50, eta_min=0.00001)
         self.loss_fn = torch.nn.MSELoss()
 
         self.losses = []

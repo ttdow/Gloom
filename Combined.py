@@ -21,8 +21,8 @@ def main():
     # Check for checkpoint to load - CLI syntax: py neutral.py <filepath>
     # Model saves automatically at the end of n_episodes (hyperparameter below)
     # Can change file output name at the bottom of this function
-    neutral_file = ""
-    oki_file = ""
+    neutral_file = "./neutral.pt"
+    oki_file = "./oki_020.pt"
     if (len(sys.argv) > 1):
         file = str(sys.argv[1])
 
@@ -50,16 +50,16 @@ def main():
 
     # Setup epsilon values for explore/exploit dilemma during training
     EPSILON_MAX = 1.0
-    EPSILON_MIN = 0.1
+    EPSILON_MIN = 0.0
     epsilon = EPSILON_MAX
 
     # Training parameters
-    n_episodes = 150 # Number of training episodes
-    n_rounds = 3     # Rounds per episode
+    n_episodes = 11 # Number of training episodes
+    n_rounds = 3      # Rounds per episode
 
     # Validation parameters
-    n_valid_episodes = 3
-    validation_rate = 30
+    n_valid_episodes = 1
+    validation_rate = 5
     best_win_rate = 0.0
 
     # Hyperparameters
@@ -97,8 +97,8 @@ def main():
     damage_taken = []
     wins = 0
 
-    player_hp_weight = 1.0
-    opp_hp_weight = 0.25
+    player_hp_weight = 10
+    opp_hp_weight = 10
 
     # ------------------------- TRAINING LOOP ---------------------------------
     for episode in tqdm(range(n_episodes)):
@@ -148,7 +148,7 @@ def main():
 
                 # Calculate reward
                 if len(prev_state) == 143 and len(state) == 143:
-                    reward = (opp_hp_weight * (prev_state[65] - state[65])) - (player_hp_weight * (prev_state[0] - state[0]))
+                    reward = (opp_hp_weight * (state[65] - next_state[65])) - (player_hp_weight * (state[0] - next_state[0])) - (1/900)
 
                 # Update experience replay
                 oki_memory.push(state, action, next_state, reward, done, oki_agent)
@@ -167,9 +167,6 @@ def main():
 
                 # Step the environment with the selected action
                 next_state, reward, done, _ = env.step(action)
-
-                # Get opponent's current state from env (STAND, CROUCH, AIR, DOWN)
-                opp_state = env.getP2().state # TODO Can't be used with Java AI agent - need to find workaround
 
                 # Calculate reward function based on states and action
                 reward = neutral.calc_reward(env, state, action, next_state, prev_opp_state, opp_state, done)
@@ -257,8 +254,8 @@ def main():
                     # Track frame rate
                     frame_counter += 1
 
+                    # Get update state to determine if they are downed
                     opp_state = env.getP1().getOpponentState()
-
                     if type(opp_state) != str and type(prev_opp_state) != str and type(opp_state) != int and type(prev_opp_state) != int:
                         if opp_state.equals(env.getP2().gateway.jvm.enumerate.State.DOWN) and oki == False:
                             oki = True
@@ -291,9 +288,6 @@ def main():
                         # Step the environment with the selected action
                         next_state, reward, done, _ = env.step(action)
 
-                        # Get opponent's current state from env (STAND, CROUCH, AIR, DOWN)
-                        opp_state = env.getP2().state # TODO Can't be used with Java AI agent - need to find workaround
-
                     # Update the state data
                     prev_state = state
                     state = next_state
@@ -323,7 +317,6 @@ def main():
                 print("Saving new best checkpoints")
                 neutral_agent.save('./neutral_best.pt', epsilon, rewards, wins, damage_done, damage_taken)
                 oki_agent.save('./oki_best.pt', epsilon, rewards, wins, damage_done, damage_taken)
-
 
             # ---------------------- END VALIDATION LOOP ----------------------
 
