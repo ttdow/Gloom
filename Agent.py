@@ -158,6 +158,9 @@ class Agent():
         loss.backward()
         self.optimizer.step()
 
+        # Update the learning rate
+        self.scheduler.step()
+
         return
 
     def save(self, file, epsilon, rewards, wins, damage_done, damage_taken):

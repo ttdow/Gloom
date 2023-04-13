@@ -16,7 +16,7 @@ class Genotype():
     def __init__(self, batch_size, update_freq, lr, gamma, tau, alpha, n_layers):
         self.batch_size = batch_size    # Experience replay batch size per round
         self.update_freq = update_freq  # Target network soft update frequency
-        self.lr = 0.00001               # Optimizer learning rate
+        self.lr = 0.001               # Optimizer learning rate
         self.gamma = gamma              # Discount rate
         self.tau = tau                  # Target network update rate
         self.alpha = alpha              # Priority decay rate
@@ -30,7 +30,6 @@ class Genotype():
         out = ""
         out += "Batch Size: " + str(self.batch_size) + "\n"
         out += "Update Freq: " + str(self.update_freq) + "\n"
-        out += "Learning Rate: " + str(self.lr) + "\n"
         out += "Gamma: " + str(self.gamma) + "\n"
         out += "Tau: " + str(self.tau) + "\n"
         out += "Alpha: " + str(self.alpha) + "\n"
@@ -173,10 +172,17 @@ class EHO():
         genotypes = self.genotypes
         sorted_genotypes = [x for _, x in sorted(zip(fitness, genotypes), reverse=True)]
 
+        # Output results of last generation before making a new one
         print("Top 3 Selections: ")
         print(str(sorted_genotypes[0]))
+        print("Fitness value: " + str(fitness[0]))
+        print("")
         print(str(sorted_genotypes[1]))
+        print("Fitness value: " + str(fitness[1]))
+        print("")
         print(str(sorted_genotypes[2]))
+        print("Fitness value: " + str(fitness[2]))
+        print("------------------------------")
 
         next_generation = []
 
@@ -359,16 +365,16 @@ def main():
 
     # Setup epsilon values for explore/exploit calcs
     EPSILON_MAX = 1.0
-    EPSILON_DECAY = 0.9549925860
-    EPSILON_MIN = 0.01
+    EPSILON_DECAY = 0.9772372210
+    EPSILON_MIN = 0.1
     epsilon = EPSILON_MAX
 
     # Training parameters
-    n_episodes = 2                 # Number of training episodes
-    n_rounds = 3                   # Round per episode
+    n_episodes = 150       # Number of training episodes
+    n_rounds = 3           # Round per episode
 
     # Validation parameters
-    n_valid_episodes = 1
+    n_valid_episodes = 20
 
     # Hyperparameters
     batch_size = 16                # Experience replay batch size per round
@@ -554,8 +560,10 @@ def main():
                         state = env.reset(p2=opponent)
 
             # Save fitness value (reward, win_rate) for this genotype
-            eho.update_phenotype(None, wins / n_valid_episodes)
-            print("Win rate: " + str(wins / n_valid_episodes))
+            eho.update_phenotype(None, wins / (n_valid_episodes * n_rounds))
+            print("Win rate: " + str(wins / (n_valid_episodes * n_rounds)))
+            print("------------------------------")
+            wins = 0
 
             # Force garbage collection between genotypes
             gc.collect()
