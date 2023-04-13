@@ -18,44 +18,7 @@ from gym_fightingice.envs.RL_TEST import RLTEST
 
 from neutral import calc_reward
 
-class ReplayMemory():
-    def __init__(self, capacity):
-        self.capacity = capacity
-        self.memory = []
-        self.position = 0
-
-    def __len__(self) -> int:
-        return len(self.memory)
-
-    def push(self, state, action, next_state, reward, done, agent):
-        
-        # Make more room in memory if needed
-        if len(self.memory) < self.capacity:
-            self.memory.append(None)
-
-        # Not sure why this happens        
-        if type(state) != np.ndarray:
-                state = state[0]
-
-        # Convert data from ndarray to tensor for ease of use
-        state = torch.from_numpy(state).float().to(torch.device("cpu"))
-        next_state = torch.from_numpy(next_state).float().to(torch.device("cpu"))
-
-        # Save a new memory to circular buffer
-        self.memory[self.position] = (state, action, next_state, reward, done)
-
-        # Cycle through circular buffer
-        self.position = (self.position + 1) % self.capacity
-
-    def sample(self, batch_size):
-
-        # Grab <batch_size> random samples of memories
-        batch = random.sample(self.memory, batch_size)
-
-        # Zip the unpacked sample of memories
-        states, actions, next_states, rewards, dones = zip(*batch)
-
-        return states, actions, next_states, rewards, dones
+from ReplayMemory import ReplayMemory
 
 def main():
     neutral_file = "neutral4.pt"
@@ -85,12 +48,14 @@ def main():
     opponentAgent = Agent(state.shape[0], len(action_vecs))
     memory = ReplayMemory(100000)
 
-    epsilon, _ = agent.load(neutral_file)
+    _, _ = agent.load(neutral_file)
     _, _ = okiAgent.load(oki_file)
 
-    EPSILON_MAX = 0.99
-    EPSILON_DECAY = 0.9999995
-    EPSILON_MIN = 0.00
+    epsilon = 0.10
+
+    #EPSILON_MAX = 0.99
+    #EPSILON_DECAY = 0.9999995
+    #EPSILON_MIN = 0.00
 
     batch_size = 256
     n_episodes = 100
@@ -116,6 +81,7 @@ def main():
         results_dict[opponent_file]['damage_done'] = []
         results_dict[opponent_file]['oki_frames'] = []
         results_dict[opponent_file]['wins'] = 0
+        results_dict[opponent_file]['actions'] = []
         _, _ = opponentAgent.load(opponent_file)
         for episode in range(n_episodes):
             state = env.reset(p2 = RLTEST)
@@ -147,6 +113,7 @@ def main():
                     oki_count += 1
                     action_count += 1
                     action = okiAgent.act(state, epsilon)
+                    results_dict[opponent_file]['actions'].append(action)
                     next_state, _, done, _ = env.step(action)
                     if len(next_state) == 143 and len(state) == 143:
                         reward = (opp_hp_weight * (state[65] - next_state[65])) - (player_hp_weight * (state[0] - next_state[0])) - (1/900)
@@ -162,6 +129,7 @@ def main():
                     if type(state) != np.ndarray:
                         state = state[0]
                     action = agent.act(state, epsilon)
+                    results_dict[opponent_file]['actions'].append(action)
 
                     next_state, reward, done, _ = env.step(action)
                     opp_state = env.getP2().state
@@ -170,7 +138,6 @@ def main():
                     memory.push(state, action, next_state, reward, done, agent)
                     agent.learn(memory, batch_size)
 
-                epsilon = max(epsilon * EPSILON_DECAY, EPSILON_MIN)
                 prev_state = state
                 prev_opp_state = opp_state
                 state = next_state

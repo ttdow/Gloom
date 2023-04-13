@@ -1,4 +1,5 @@
 import numpy as np
+import math
 import random
 from random import randint
 import sys
@@ -19,76 +20,7 @@ from classifier import Classifier
 from DNN import DNN
 
 from OkiAgent import OkiAgent
-
-class ReplayMemory():
-    def __init__(self, capacity):
-        self.capacity = capacity
-        self.memory = []
-        self.position = 0
-
-    def __len__(self) -> int:
-        return len(self.memory)
-
-    def push(self, state, action, next_state, reward, done, agent):
-        
-        # Make more room in memory if needed
-        if len(self.memory) < self.capacity:
-            self.memory.append(None)
-
-        # Not sure why this happens        
-        if type(state) != np.ndarray:
-                state = state[0]
-
-        # Convert data from ndarray to tensor for ease of use
-        state = torch.from_numpy(state).float().to(agent.device)
-        next_state = torch.from_numpy(next_state).float().to(agent.device)
-
-        # Save a new memory to circular buffer
-        self.memory[self.position] = (state, action, next_state, reward, done)
-
-        # Cycle through circular buffer
-        self.position = (self.position + 1) % self.capacity
-
-    def sample(self, batch_size):
-
-        # Grab <batch_size> random samples of memories
-        batch = random.sample(self.memory, batch_size)
-
-        # Zip the unpacked sample of memories
-        states, actions, next_states, rewards, dones = zip(*batch)
-
-        return states, actions, next_states, rewards, dones
-
-def calc_reward(env, env_state, action, next_env_state, prev_opp_state, opp_state):
-
-    reward = 0
-
-    if type(env_state) != np.ndarray:
-        env_state = env_state[0]
-
-    #print(env_state[92:97])
-
-    #print(type(env_state))
-    #print(env_state.shape)
-
-    playerX = env_state[2]
-    opponentX = env_state[67]
-
-    #print(env_state[65])
-    #print(env_state[65] - prev_state[65])
-
-    #print("Player X: " + str(playerX))
-    #print("Opponent X: " + str(opponentX))
-    dist = abs(playerX - opponentX) * 960
-    #print("Distance: " + str(int(dist)))
-
-    if type(opp_state) != str:
-        if opp_state.equals(env.getP2().gateway.jvm.enumerate.State.DOWN) and opp_state != prev_opp_state:
-            #print(opp_state)
-            #print('---')
-            reward += 1000
-
-    return reward
+from ReplayMemory import ReplayMemory
 
 def main():
 
@@ -117,14 +49,20 @@ def main():
 
     # Setup epsilon values for explore/exploit calcs
     EPSILON_MAX = 0.99
-    EPSILON_DECAY = 0.9999995
-    EPSILON_MIN = 0.00
-    #EPSILON_DECAY = 0.99999975
-    #EPSILON_MIN = 0.80
+    EPSILON_MIN = 0.10
     epsilon = EPSILON_MAX
 
+    # Hyperparameters
+    batch_size = 16                # Experience replay batch size per round
+    targetDNN_soft_update_freq = 2 # Target network soft update frequency
+    learning_rate = 0.0000625      # Optimizer learning rate - NOT USED CURRENTLY
+    gamma = 0.99                   # Discount rate
+    tau = 0.01                     # Target network rate
+    alpha = 0.6                    # Priority decay
+    n_layers = 1                   # Hidden layers
+
     # Initialize agent and experience replay memory
-    agent = OkiAgent(state.shape[0], len(action_vecs))
+    agent = OkiAgent(state.shape[0], len(action_vecs), learning_rate, gamma, tau, alpha, n_layers)
     memory = ReplayMemory(50000)
 
     # Load model if it exists
@@ -132,18 +70,22 @@ def main():
     rewards = []
     actions = []
 
-    if True:
+    if False:
         epsilon, rewards = agent.load("oki_019.pt")
         print("Model: " + file + " loaded.")
 
     # Hyperparameters
-    batch_size = 128
-    n_episodes = 1000
+    #batch_size = 128
+    n_episodes = 50
     n_rounds = 3
 
 
     # Flag for round finished
     done = False
+
+    damage_done = []
+    damage_taken = []
+    wins = 0
 
     #Training loop
     player_hp_weight = 10
@@ -187,9 +129,9 @@ def main():
                 #print('reward: ', reward)
                 total_reward += reward
                 memory.push(state, action, next_state, reward, done, agent)
-                agent.learn(memory, batch_size)
+                agent.learn(memory, batch_size, done)
 
-                epsilon = max(epsilon * EPSILON_DECAY, EPSILON_MIN)
+                #epsilon = max(epsilon * EPSILON_DECAY, EPSILON_MIN)
                 if action_count == 90 or (state[0] - next_state[0] > 0):
                     print('TRAINING STOP')
                     training = False
@@ -206,21 +148,30 @@ def main():
                         print(reward)
                         total_reward += reward
                         memory.push(state, action, next_state, reward, done, agent)
-                        agent.learn(memory, batch_size)
+                        agent.learn(memory, batch_size, done)
 
             # Update opponent's last state
             prev_state = state
             prev_opp_state = opp_state
             state = next_state
             if done:
+                playerHP = state[0] * 100
+                damage_taken.append(100 - playerHP)
+                opponentHP = state[65] * 100
+                damage_done.append(100 - opponentHP)
+
+                # Log winner
+                if playerHP > opponentHP:
+                    wins += 1
                 round += 1
                 state = env.reset(p2=WakeUp)
 
         print("Total reward: " + str(total_reward))
         print("Epsilon: " + str(epsilon))
+        epsilon = EPSILON_MIN + 0.5 * (EPSILON_MAX - EPSILON_MIN) * (1 + math.cos((episode / n_episodes) * math.pi))
         rewards.append(total_reward)
         if episode > 0 and episode % 1 == 0:
-            agent.save('./oki_019.pt', epsilon, rewards)
+            agent.save('./oki_020.pt', epsilon, rewards, wins, damage_done, damage_taken)
 
     env.close()
     exit()
