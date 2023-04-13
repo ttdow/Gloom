@@ -5,6 +5,7 @@ import sys
 import gc
 from tqdm import tqdm
 import copy
+import math
 
 import torch
 import gym
@@ -503,8 +504,8 @@ def main():
                 #print("Epsilon: " + str(epsilon))
                 #print("Total Reward: " + str(total_reward))
 
-                # Update epsilon for next epsiode
-                epsilon = max(epsilon * EPSILON_DECAY, EPSILON_MIN)
+                # Decrease epsilon for next epsiode - cosine annealing
+                epsilon = EPSILON_MIN + 0.5 * (EPSILON_MAX - EPSILON_MIN) * (1 + math.cos((episode / n_episodes) * math.pi))
 
                 # Log total reward of episode for
                 rewards.append(total_reward)
