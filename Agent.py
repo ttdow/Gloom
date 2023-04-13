@@ -92,7 +92,9 @@ class Agent():
         if mem_size <= double_batch:
             return
 
-        # If memory not full, only take up to the current memory size of priorities - buffer
+        # Only take priorities up to the current memory size - batch_sizex2 
+        # (memory.priority length is set to memory.capacity at execution time which 
+        # may be longer than memory size)
         priorities = memory.priority[:mem_size - double_batch]
 
         # Calculate a probability using the priority value

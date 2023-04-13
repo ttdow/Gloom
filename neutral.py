@@ -295,7 +295,7 @@ def calc_reward(env, env_state, action, next_env_state, prev_opp_state, opp_stat
         if player_new_HP > opponent_new_HP:
             reward += 500
 
-    # TODO Customize reward based on spacing state
+    # TODO Customize reward based on spacing state?
     # -------------------- Determine spacing state ----------------------------
     #dist = GetDistance(env_state)
     #if dist <= 135:
