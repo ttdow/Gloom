@@ -16,13 +16,16 @@ class Genotype():
     def __init__(self, batch_size, update_freq, lr, gamma, tau, alpha, n_layers):
         self.batch_size = batch_size    # Experience replay batch size per round
         self.update_freq = update_freq  # Target network soft update frequency
-        self.lr = lr                    # Optimizer learning rate
+        self.lr = 0.00001               # Optimizer learning rate
         self.gamma = gamma              # Discount rate
         self.tau = tau                  # Target network update rate
         self.alpha = alpha              # Priority decay rate
         self.n_layers = n_layers        # Hidden layers
 
-    def to_string(self):
+    def __lt__(self, other):
+        return self.gamma < other.gamma
+
+    def __str__(self):
 
         out = ""
         out += "Batch Size: " + str(self.batch_size) + "\n"
@@ -87,29 +90,24 @@ class EHO():
         else:
             genotype.update_freq += m_update_freq
 
-        # Mutate optimizer learning rate
-        m_lr = random.uniform(-0.000005, 0.000005)
-        if genotype.lr + m_lr < 0.000000000001:
-            genotype.lr = 0.000000000001
-        else:
-            genotype.lr += m_lr
-
         # Mutate Q-learning gamma (discount rate)
-        m_gamma = random.uniform(-0.05, 0.05)
+        m_gamma = random.uniform(-0.25, 0.25)
         if genotype.gamma + m_gamma < 0.01:
             genotype.gamma = 0.01
+        elif genotype.gamma + m_gamma > 1.0:
+            genotype.gamma = 1.0
         else:
             genotype.gamma += m_gamma
 
         # Mutate target DNN update rate
-        m_tau = random.uniform(-0.003, 0.003)
-        if genotype.tau + m_tau < 0.000001:
-            genotype.tau = 0.000001
+        m_tau = random.uniform(-0.05, 0.05)
+        if genotype.tau + m_tau < 0.00001:
+            genotype.tau = 0.00001
         else:
             genotype.tau += m_tau
 
         # Mutate priority decay rate
-        m_alpha = random.uniform(-0.05, 0.05)
+        m_alpha = random.uniform(-0.1, 0.1)
         if genotype.alpha + m_alpha < 0.01:
             genotype.alpha = 0.01
         else:
@@ -127,7 +125,7 @@ class EHO():
     
     def crossover(self, g0, g1):
 
-        child_genotype = Genotype()
+        child_genotype = Genotype(0, 0, 0, 0, 0, 0, 0)
         coin_tosses = []
         for i in range(7):
             coin_tosses.append(random.randint(0, 1))
@@ -141,11 +139,6 @@ class EHO():
             child_genotype.update_freq = g0.update_freq
         else:
             child_genotype.update_freq = g1.update_freq
-
-        if coin_tosses[2] == 0:
-            child_genotype.lr = g0.lr
-        else:
-            child_genotype.lr = g1.lr
 
         if coin_tosses[3] == 0:
             child_genotype.gamma = g0.gamma
@@ -181,9 +174,9 @@ class EHO():
         sorted_genotypes = [x for _, x in sorted(zip(fitness, genotypes), reverse=True)]
 
         print("Top 3 Selections: ")
-        print(sorted_genotypes[0].to_string())
-        print(sorted_genotypes[1].to_string())
-        print(sorted_genotypes[2].to_string())
+        print(str(sorted_genotypes[0]))
+        print(str(sorted_genotypes[1]))
+        print(str(sorted_genotypes[2]))
 
         next_generation = []
 
@@ -360,22 +353,22 @@ def main():
         action_vecs.append(v)
 
     # Setup observation space
-    opponent = "Machete"
+    opponent = "Thunder2021"
     env = gym.make("FightingiceDataNoFrameskip-v0", java_env_path="", port=4242, freq_restart_java=100000)
     state = env.reset(p2=Machete)
 
     # Setup epsilon values for explore/exploit calcs
     EPSILON_MAX = 1.0
-    EPSILON_DECAY = 0.9#0.9549925860
+    EPSILON_DECAY = 0.9549925860
     EPSILON_MIN = 0.01
     epsilon = EPSILON_MAX
 
     # Training parameters
-    n_episodes = 5                 # Number of training episodes
+    n_episodes = 2                 # Number of training episodes
     n_rounds = 3                   # Round per episode
 
     # Validation parameters
-    n_valid_episodes = 3
+    n_valid_episodes = 1
 
     # Hyperparameters
     batch_size = 16                # Experience replay batch size per round
@@ -408,7 +401,7 @@ def main():
         # Train multiple hyperparameter genotypes in this generation
         for genotype in eho.genotypes:
 
-            print(genotype.to_string())
+            print(str(genotype))
 
             # Initialize agent and experience replay memory
             agent = Agent(state.shape[0], len(action_vecs), genotype.lr, genotype.gamma, genotype.tau, genotype.alpha, genotype.n_layers)
@@ -453,7 +446,7 @@ def main():
                     next_state, reward, done, _ = env.step(action)
 
                     # Get opponent's current state from env (STAND, CROUCH, AIR, DOWN)
-                    opp_state = None#env.getP2().state # TODO: Temporarily turn off for testing .jar AI file
+                    opp_state = env.getP2().state # TODO Can't be used with Java AI agent - need to find workaround
 
                     # Calculate reward function based on states and action
                     reward = calc_reward(env, state, action, next_state, prev_opp_state, opp_state, done)
@@ -520,89 +513,49 @@ def main():
                 # Force garbage collection between episodes
                 gc.collect()
 
-                # Track wins for validation
-                wins = 0
+            # Track wins for validation
+            wins = 0
 
-                # --------------------- VALIDATION LOOP -----------------------
-                for episode in tqdm(range(n_valid_episodes)):
+            # --------------------- VALIDATION LOOP -----------------------
+            for episode in tqdm(range(n_valid_episodes)):
 
-                    # Reset env for next episode
-                    state = env.reset(p2=opponent)
-                    round = 0
-                    #total_reward = 0
+                # Reset env for next episode
+                state = env.reset(p2=opponent)
+                round = 0
 
-                    # Reset opponent's state for next episode
-                    prev_opp_state = -1
+                # Reset opponent's state for next episode
+                prev_opp_state = -1
 
-                    # Round timing data
-                    #old_time = time.time()
+                # Loop until n_rounds are complete
+                while round < n_rounds:
 
-                    #print("Episode: " + str(episode))
+                    # Ensure the environment state is in the correct format
+                    if type(state) != np.ndarray:
+                        state = state[0]
+            
+                    # Get the next action - set epsilon to 0 for validation
+                    action = agent.act(state, 0.0)
 
-                    # Loop until n_rounds are complete
-                    while round < n_rounds:
+                    # Step the environment with the selected action
+                    next_state, reward, done, _ = env.step(action)
 
-                        # Track frame rate
-                        #frame_counter += 1
+                    # Update the state for next frame
+                    state = next_state
 
-                        # Ensure the environment state is in the correct format
-                        if type(state) != np.ndarray:
-                            state = state[0]
-                
-                        # Get the next action
-                        action = agent.act(state, epsilon)
+                    # Check if round is complete
+                    if done:
 
-                        # Step the environment with the selected action
-                        next_state, reward, done, _ = env.step(action)
+                        # Log winner
+                        if playerHP > opponentHP:
+                            wins += 1
 
-                        # Get opponent's current state from env (STAND, CROUCH, AIR, DOWN)
-                        opp_state = None#env.getP2().state # TODO: Temporarily turn off for testing .jar AI file
-
-                        # Calculate reward function based on states and action
-                        reward = calc_reward(env, state, action, next_state, prev_opp_state, opp_state, done)
-
-                        # Update opponent's last state
-                        prev_opp_state = opp_state
-
-                        # Save total reward for the episode for logging
-                        #total_reward += reward
-
-                        # Add the last state, action transition to the agent's memory cache
-                        #memory.push(state, action, next_state, reward, done, agent)
-
-                        # Update Q-values
-                        #agent.learn(memory, batch_size, done)
-
-                        # Update the state for next frame
-                        state = next_state
-
-                        # Check if round is complete
-                        if done:
-                            
-                            # Calculate average frame rate of round
-                            #new_time = time.time()
-                            #dt = new_time - old_time
-                            #print(str(frame_counter) + " frames / " + str(dt) + " (FPS: " + str(frame_counter / dt) + ")")
-                            #old_time = new_time
-                            #frame_counter = 0
-
-                            # Log play and opponent health
-                            #playerHP = state[0] * 100
-                            #damage_taken.append(100 - playerHP)
-                            #opponentHP = state[65] * 100
-                            #damage_done.append(100 - opponentHP)
-
-                            # Log winner
-                            if playerHP > opponentHP:
-                                wins += 1
-
-                            # Setup for the next round
-                            round += 1
-                            state = env.reset(p2=opponent)
+                        # Setup for the next round
+                        round += 1
+                        state = env.reset(p2=opponent)
 
             # Save fitness value (reward, win_rate) for this genotype
-            eho.update_phenotype(None, wins / n_episodes)
-            print("Win rate: " + str(wins / n_episodes))
+            eho.update_phenotype(None, wins / n_valid_episodes)
+            print("Win rate: " + str(wins / n_valid_episodes))
 
             # Force garbage collection between genotypes
             gc.collect()

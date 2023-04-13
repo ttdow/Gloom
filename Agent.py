@@ -3,6 +3,8 @@ import numpy as np
 import time
 import copy
 
+from torch.optim.lr_scheduler import CosineAnnealingLR
+
 from DNN import DNN
 
 class Agent():
@@ -12,8 +14,8 @@ class Agent():
         self.n_actions = n_actions
 
         self.device = torch.device("cpu") #torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-        self.model = DNN(n_states, n_actions, n_layers).to(self.device)       # Used for calculating current Q-values during training 
-        self.target = copy.deepcopy(self.model)  # Used for calculating target Q-values during training
+        self.model = DNN(n_states, n_actions, n_layers).to(self.device) # Used for calculating policy Q-values
+        self.target = copy.deepcopy(self.model) # Used for calculating target Q-values
 
         # Freeze parameters in target network - we update the target network manually
         for p in self.target.parameters():
@@ -25,7 +27,8 @@ class Agent():
         self.tau = tau          # Soft update coefficient for target network
         self.alpha = alpha      # Controls degree of prioritization
 
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate)
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=0.001)
+        self.scheduler = CosineAnnealingLR(self.optimizer, T_max=150, eta_min=0.00001)
         self.loss_fn = torch.nn.MSELoss()
 
         self.losses = []
@@ -111,11 +114,7 @@ class Agent():
 
         # Iterate through the first half of the list
         for i in range(0, batch_size):
-
-            # Ensure we do not go out of bounds
-            #if i + batch_size >= len(transitions):
-            #    break;
-            
+           
             # Compound the reward of each memory using the next time delayed reward
             # of the next batch_size memories
             state, action, next_state, reward, done = transitions[i]
