@@ -28,7 +28,8 @@ class ReplayMemory():
         next_state = torch.from_numpy(next_state).float().to(torch.device("cpu"))
 
         # Calculate importance/priority of this memory (i.e. td error)
-        print(state.shape, action, next_state.shape, reward, done)
+        #print(state.shape, action, next_state.shape, reward, done)
+        
         priority = agent.prioritize(state, action, next_state, reward, done)
         self.priority[self.position] = priority
 

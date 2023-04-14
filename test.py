@@ -128,7 +128,7 @@ def main():
                     if len(next_state) == 143 and len(state) == 143:
                         reward = (opp_hp_weight * (state[65] - next_state[65])) - (player_hp_weight * (state[0] - next_state[0]))# - (1/900)
                     total_reward += reward
-                    oki_memory.push(state, action, next_state, reward, done, OkiAgent)
+                    oki_memory.push(state, action, next_state, reward, done, okiAgent)
 
                     if action_count == 90 or (state[0] - next_state[0] > 0):
                         print('END OKI')
