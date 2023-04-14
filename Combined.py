@@ -54,12 +54,12 @@ def main():
     epsilon = EPSILON_MAX
 
     # Training parameters
-    n_episodes = 11 # Number of training episodes
+    n_episodes = 1000 # Number of training episodes
     n_rounds = 3      # Rounds per episode
 
     # Validation parameters
-    n_valid_episodes = 1
-    validation_rate = 5
+    n_valid_episodes = 5
+    validation_rate = 50
     best_win_rate = 0.0
 
     # Hyperparameters
@@ -73,10 +73,10 @@ def main():
 
     # Initialize agents and experience replays
     neutral_memory = ReplayMemory(100000)
-    neutral_agent = Agent(state.shape[0], len(action_vecs), learning_rate, gamma, tau, alpha, n_layers)
+    neutral_agent = Agent(state.shape[0], len(action_vecs), learning_rate, gamma, tau, alpha, n_layers, n_episodes)
 
     oki_memory = ReplayMemory(100000)
-    oki_agent = Agent(state.shape[0], len(action_vecs), learning_rate, gamma, tau, alpha, n_layers)
+    oki_agent = Agent(state.shape[0], len(action_vecs), learning_rate, gamma, tau, alpha, n_layers, n_episodes)
 
     # Load checkpoint models if they exist
     if neutral_file != "":
@@ -101,7 +101,9 @@ def main():
     opp_hp_weight = 10
 
     # ------------------------- TRAINING LOOP ---------------------------------
-    for episode in tqdm(range(n_episodes)):
+    for episode in range(n_episodes):
+
+        print("Training Episode: " + str(episode))
 
         # Reset env for next episode
         state = env.reset(p2=Machete)
@@ -220,11 +222,9 @@ def main():
         # Log total reward of episode
         rewards.append(total_reward)
 
-        # Save the model every 25 episodes
-        if episode % 25 == 0 and episode > 0:
-            print("Saving checkpoint at episode " + str(episode))
-            neutral_agent.save('./neutral_training.pt', epsilon, rewards, wins, damage_done, damage_taken)
-            oki_agent.save('./oki_training.pt', epsilon, rewards, wins, damage_done, damage_taken)
+        # Save the models every episode
+        neutral_agent.save('./neutral_training.pt', epsilon, rewards, wins, damage_done, damage_taken)
+        oki_agent.save('./oki_training.pt', epsilon, rewards, wins, damage_done, damage_taken)
 
         # Force garbage collection between episodes
         gc.collect()
@@ -235,7 +235,9 @@ def main():
             valid_wins = 0
         
             # ----------------------- VALIDATION LOOP -----------------------------
-            for episode in tqdm(range(n_valid_episodes)):
+            for episode in range(n_valid_episodes):
+
+                print("Validation Episode: " + str(episode))
 
                 # Reset env for next episode
                 state = env.reset(p2=opponent)
@@ -314,7 +316,7 @@ def main():
 
             # If this validation is the best so far, save it
             if win_rate >= best_win_rate:
-                print("Saving new best checkpoints")
+                print("Saving new best checkpoints.")
                 neutral_agent.save('./neutral_best.pt', epsilon, rewards, wins, damage_done, damage_taken)
                 oki_agent.save('./oki_best.pt', epsilon, rewards, wins, damage_done, damage_taken)
 

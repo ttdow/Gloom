@@ -8,7 +8,7 @@ from torch.optim.lr_scheduler import CosineAnnealingLR
 from DNN import DNN
 
 class Agent():
-    def __init__(self, n_states, n_actions, lr, gamma, tau, alpha, n_layers):
+    def __init__(self, n_states, n_actions, lr, gamma, tau, alpha, n_layers, n_episodes):
 
         self.n_states = n_states
         self.n_actions = n_actions
@@ -28,7 +28,7 @@ class Agent():
         self.alpha = alpha      # Controls degree of prioritization
 
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=0.001)
-        self.scheduler = CosineAnnealingLR(self.optimizer, T_max=50, eta_min=0.00001)
+        self.scheduler = CosineAnnealingLR(self.optimizer, T_max=n_episodes, eta_min=0.00001)
         self.loss_fn = torch.nn.MSELoss()
 
         self.losses = []
