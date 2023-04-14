@@ -27,8 +27,8 @@ class Agent():
         self.tau = tau          # Soft update coefficient for target network
         self.alpha = alpha      # Controls degree of prioritization
 
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=0.001)
-        self.scheduler = CosineAnnealingLR(self.optimizer, T_max=n_episodes, eta_min=0.00001)
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=0.0003)
+        self.scheduler = CosineAnnealingLR(self.optimizer, T_max=n_episodes, eta_min=0.000001)
         self.loss_fn = torch.nn.MSELoss()
 
         self.losses = []
@@ -185,6 +185,8 @@ class Agent():
 
         if "losses" in checkpoint:
             self.losses = checkpoint['losses']
+
+        return checkpoint['epsilon'], checkpoint['rewards'], checkpoint['wins'], checkpoint['damage_done'], checkpoint['damage_taken']
 
         if "rewards" in checkpoint:
             return checkpoint['epsilon'], checkpoint['rewards']

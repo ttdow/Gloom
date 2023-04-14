@@ -21,8 +21,8 @@ def main():
     # Check for checkpoint to load - CLI syntax: py neutral.py <filepath>
     # Model saves automatically at the end of n_episodes (hyperparameter below)
     # Can change file output name at the bottom of this function
-    neutral_file = "./neutral.pt"
-    oki_file = "./oki_020.pt"
+    neutral_file = "./neutral_best.pt"
+    oki_file = "./oki_best.pt"
     if (len(sys.argv) > 1):
         file = str(sys.argv[1])
 
@@ -78,11 +78,17 @@ def main():
     oki_memory = ReplayMemory(100000)
     oki_agent = Agent(state.shape[0], len(action_vecs), learning_rate, gamma, tau, alpha, n_layers, n_episodes)
 
+    # Initialize loggables
+    rewards = []
+    damage_done = []
+    damage_taken = []
+    wins = 0
+
     # Load checkpoint models if they exist
     if neutral_file != "":
-        _ = neutral_agent.load(neutral_file)
+        _, rewards, wins, damage_done, damage_taken = neutral_agent.load(neutral_file)
     if oki_file != "":
-        _ = oki_agent.load(oki_file)
+        _, _, _, _, _ = oki_agent.load(oki_file)
 
     # Flag for round finished
     done = False
@@ -91,17 +97,12 @@ def main():
     frame_counter = 0
     old_time = time.time()
 
-    # Initialize reward log
-    rewards = []
-    damage_done = []
-    damage_taken = []
-    wins = 0
-
+    # Oki model reward weights
     player_hp_weight = 10
     opp_hp_weight = 10
 
     # ------------------------- TRAINING LOOP ---------------------------------
-    for episode in range(n_episodes):
+    for episode in range(551, n_episodes):
 
         print("Training Episode: " + str(episode))
 
@@ -168,7 +169,7 @@ def main():
                 action = neutral_agent.act(state, epsilon)
 
                 # Step the environment with the selected action
-                next_state, reward, done, _ = env.step(action)
+                next_state, _, done, _ = env.step(action)
 
                 # Calculate reward function based on states and action
                 reward = neutral.calc_reward(env, state, action, next_state, prev_opp_state, opp_state, done)
@@ -221,10 +222,13 @@ def main():
 
         # Log total reward of episode
         rewards.append(total_reward)
+        print("  Total Reward: " + str(total_reward))
+        print("  Win Rate: " + str(wins / (episode * 3)))
+        print("--------------------")
 
         # Save the models every episode
-        neutral_agent.save('./neutral_training.pt', epsilon, rewards, wins, damage_done, damage_taken)
-        oki_agent.save('./oki_training.pt', epsilon, rewards, wins, damage_done, damage_taken)
+        neutral_agent.save('./neutral_training3.pt', epsilon, rewards, wins, damage_done, damage_taken)
+        oki_agent.save('./oki_training3.pt', epsilon, rewards, wins, damage_done, damage_taken)
 
         # Force garbage collection between episodes
         gc.collect()
@@ -312,13 +316,15 @@ def main():
 
             # Report validation results - win rate
             win_rate = valid_wins / (n_valid_episodes * n_rounds)
-            print("Win rate: " + str(win_rate))
+            print("  Win rate: " + str(win_rate))
+            print("--------------------")
 
             # If this validation is the best so far, save it
             if win_rate >= best_win_rate:
                 print("Saving new best checkpoints.")
                 neutral_agent.save('./neutral_best.pt', epsilon, rewards, wins, damage_done, damage_taken)
                 oki_agent.save('./oki_best.pt', epsilon, rewards, wins, damage_done, damage_taken)
+                best_win_rate = win_rate
 
             # ---------------------- END VALIDATION LOOP ----------------------
 
