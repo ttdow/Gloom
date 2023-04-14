@@ -27,7 +27,7 @@ class Agent():
         self.tau = tau          # Soft update coefficient for target network
         self.alpha = alpha      # Controls degree of prioritization
 
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=0.0003)
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=0.0001)
         self.scheduler = CosineAnnealingLR(self.optimizer, T_max=n_episodes, eta_min=0.000001)
         self.loss_fn = torch.nn.MSELoss()
 
