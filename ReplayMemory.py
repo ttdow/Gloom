@@ -24,10 +24,11 @@ class ReplayMemory():
             state = state[0]
 
         # Convert data from ndarray to tensor for ease of use
-        state = torch.from_numpy(state).float().to(agent.device)
-        next_state = torch.from_numpy(next_state).float().to(agent.device)
+        state = torch.from_numpy(state).float().to(torch.device("cpu"))
+        next_state = torch.from_numpy(next_state).float().to(torch.device("cpu"))
 
         # Calculate importance/priority of this memory (i.e. td error)
+        print(state.shape, action, next_state.shape, reward, done)
         priority = agent.prioritize(state, action, next_state, reward, done)
         self.priority[self.position] = priority
 
