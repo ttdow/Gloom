@@ -21,8 +21,8 @@ def main():
     # Check for checkpoint to load - CLI syntax: py neutral.py <filepath>
     # Model saves automatically at the end of n_episodes (hyperparameter below)
     # Can change file output name at the bottom of this function
-    neutral_file = "./neutral_training2.pt"
-    oki_file = "./oki_training2.pt"
+    neutral_file = "./neutral.pt"
+    oki_file = "./oki_020.pt"
     if (len(sys.argv) > 1):
         file = str(sys.argv[1])
 
@@ -54,7 +54,7 @@ def main():
     epsilon = EPSILON_MAX
 
     # Training parameters
-    n_episodes = 101  # Number of training episodes
+    n_episodes = 1000 # Number of training episodes
     n_rounds = 3      # Rounds per episode
 
     # Validation parameters

@@ -25,8 +25,7 @@ def calc_reward(env, env_state, action, next_env_state, prev_opp_state, opp_stat
     # ---------------------- Incentive for downs ------------------------------
     if type(opp_state) != str and opp_state != None:
         if str(opp_state) == "DOWN" and str(prev_opp_state):
-            reward += 1000
-            print("knockdown reward triggered")
+            reward += 100
 
     player_old_HP = env_state[0]
     player_new_HP = next_env_state[0]
