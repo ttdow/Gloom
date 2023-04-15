@@ -126,7 +126,7 @@ class FightingiceEnv_Data_NoFrameskip(gym.Env):
                                                   "--mute",
                                                   "--grey-bg",
                                                   "-off",
-                                                  "--disable-window",
+                                                  #"--disable-window",
                                                   "--limithp",
                                                   "100",
                                                   "100"],
@@ -154,8 +154,6 @@ class FightingiceEnv_Data_NoFrameskip(gym.Env):
             self.gateway.java_gateway_server.resetCallbackClient(
                 self.gateway.java_gateway_server.getCallbackClient().getAddress(), python_port)
             self.manager = self.gateway.entry_point
-
-            print(self.manager)
 
             # create pipe between gym_env_api and python_ai for java env
             server, client = Pipe()

@@ -24,8 +24,9 @@ def calc_reward(env, env_state, action, next_env_state, prev_opp_state, opp_stat
 
     # ---------------------- Incentive for downs ------------------------------
     if type(opp_state) != str and opp_state != None:
-        if opp_state.equals(env.getP2().gateway.jvm.enumerate.State.DOWN) and opp_state != prev_opp_state:
-            reward += 100
+        if str(opp_state) == "DOWN" and str(prev_opp_state):
+            reward += 1000
+            print("knockdown reward triggered")
 
     player_old_HP = env_state[0]
     player_new_HP = next_env_state[0]
@@ -147,7 +148,7 @@ def main():
     old_time = time.time()
 
     # Initialize agent and experience replay memory
-    agent = Agent(state.shape[0], len(action_vecs), learning_rate, gamma, tau, alpha, n_layers)
+    agent = Agent(state.shape[0], len(action_vecs), learning_rate, gamma, tau, alpha, n_layers, n_episodes)
     memory = ReplayMemory(100000)
 
     # Initialize logs
@@ -248,7 +249,7 @@ def main():
         rewards.append(total_reward)
 
         #Save the model checkpoint
-        agent.save('./neutral.pt', epsilon, rewards, wins, damage_done, damage_taken)
+        agent.save('./test.pt', epsilon, rewards, wins, damage_done, damage_taken)
 
         # Force garbage collection between episodes
         gc.collect()

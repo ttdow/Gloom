@@ -21,8 +21,8 @@ def main():
     # Check for checkpoint to load - CLI syntax: py neutral.py <filepath>
     # Model saves automatically at the end of n_episodes (hyperparameter below)
     # Can change file output name at the bottom of this function
-    neutral_file = "./neutral_best.pt"
-    oki_file = "./oki_best.pt"
+    neutral_file = "./neutral_training2.pt"
+    oki_file = "./oki_training2.pt"
     if (len(sys.argv) > 1):
         file = str(sys.argv[1])
 
@@ -54,7 +54,7 @@ def main():
     epsilon = EPSILON_MAX
 
     # Training parameters
-    n_episodes = 1000 # Number of training episodes
+    n_episodes = 101  # Number of training episodes
     n_rounds = 3      # Rounds per episode
 
     # Validation parameters
@@ -82,13 +82,15 @@ def main():
     rewards = []
     damage_done = []
     damage_taken = []
-    wins = 0
+    old_wins = 0
 
     # Load checkpoint models if they exist
     if neutral_file != "":
-        _, rewards, wins, damage_done, damage_taken = neutral_agent.load(neutral_file)
+        _, rewards, old_wins, damage_done, damage_taken = neutral_agent.load(neutral_file)
     if oki_file != "":
         _, _, _, _, _ = oki_agent.load(oki_file)
+
+    wins = 0
 
     # Flag for round finished
     done = False
@@ -102,7 +104,7 @@ def main():
     opp_hp_weight = 10
 
     # ------------------------- TRAINING LOOP ---------------------------------
-    for episode in range(551, n_episodes):
+    for episode in range(1, n_episodes):
 
         print("Training Episode: " + str(episode))
 
@@ -123,6 +125,9 @@ def main():
 
         # -------------------------- ROUND LOOP -------------------------------
         while round < n_rounds:
+
+            # Reset reward
+            reward = 0
             
             # Track frame rate
             frame_counter += 1
@@ -132,8 +137,10 @@ def main():
 
             # If the opponent state is DOWN switch to Oki model
             if type(opp_state) != str and type(prev_opp_state) != str and type(opp_state) != int and type(prev_opp_state) != int:
-                if opp_state.equals(env.getP2().gateway.jvm.enumerate.State.DOWN) and oki == False:
+                if str(opp_state) == "DOWN" and oki == False:
                     oki = True
+                    reward = neutral.calc_reward(env, state, action, next_state, prev_opp_state, opp_state, done)
+                    neutral_memory.push(state, action, next_state, reward, done, neutral_agent)
 
             # Ensure the environment state is in the correct format
             if type(state) != np.ndarray:
@@ -141,6 +148,8 @@ def main():
 
             # Oki model
             if oki == True:
+
+                # Counter for oki model (stays in oki for 60 frames after a knockdown)
                 action_count += 1
 
                 # Get the next action from the Oki model
@@ -151,7 +160,7 @@ def main():
 
                 # Calculate reward
                 if len(prev_state) == 143 and len(state) == 143:
-                    reward = (opp_hp_weight * (state[65] - next_state[65])) - (player_hp_weight * (state[0] - next_state[0])) - (1/900)
+                    reward += (opp_hp_weight * (state[65] - next_state[65])) - (player_hp_weight * (state[0] - next_state[0])) - (1/900)
 
                 # Update experience replay
                 oki_memory.push(state, action, next_state, reward, done, oki_agent)
@@ -223,6 +232,7 @@ def main():
         # Log total reward of episode
         rewards.append(total_reward)
         print("  Total Reward: " + str(total_reward))
+        print("  Epislon: " + str(epsilon))
         print("  Win Rate: " + str(wins / (episode * 3)))
         print("--------------------")
 
@@ -263,7 +273,7 @@ def main():
                     # Get update state to determine if they are downed
                     opp_state = env.getP1().getOpponentState()
                     if type(opp_state) != str and type(prev_opp_state) != str and type(opp_state) != int and type(prev_opp_state) != int:
-                        if opp_state.equals(env.getP2().gateway.jvm.enumerate.State.DOWN) and oki == False:
+                        if str(opp_state) == "DOWN" and oki == False:
                             oki = True
 
                     # Ensure the environment state is in the correct format
@@ -322,8 +332,8 @@ def main():
             # If this validation is the best so far, save it
             if win_rate >= best_win_rate:
                 print("Saving new best checkpoints.")
-                neutral_agent.save('./neutral_best.pt', epsilon, rewards, wins, damage_done, damage_taken)
-                oki_agent.save('./oki_best.pt', epsilon, rewards, wins, damage_done, damage_taken)
+                neutral_agent.save('./neutral_best2.pt', epsilon, rewards, wins, damage_done, damage_taken)
+                oki_agent.save('./oki_best2.pt', epsilon, rewards, wins, damage_done, damage_taken)
                 best_win_rate = win_rate
 
             # ---------------------- END VALIDATION LOOP ----------------------
