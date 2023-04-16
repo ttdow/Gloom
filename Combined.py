@@ -21,8 +21,8 @@ def main():
     # Check for checkpoint to load - CLI syntax: py neutral.py <filepath>
     # Model saves automatically at the end of n_episodes (hyperparameter below)
     # Can change file output name at the bottom of this function
-    neutral_file = "./neutral_best.pt"
-    oki_file = "./oki_best.pt"
+    neutral_file = "./neutral_006.pt"
+    oki_file = "./oki_020.pt"
     if (len(sys.argv) > 1):
         file = str(sys.argv[1])
 
