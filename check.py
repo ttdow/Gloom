@@ -40,6 +40,6 @@ def load(file):
 
         return
 
-file = "./neutral_training2.pt"
+file = "./neutral_training3.pt"
 
 load(file)

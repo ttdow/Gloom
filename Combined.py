@@ -21,8 +21,8 @@ def main():
     # Check for checkpoint to load - CLI syntax: py neutral.py <filepath>
     # Model saves automatically at the end of n_episodes (hyperparameter below)
     # Can change file output name at the bottom of this function
-    neutral_file = "./neutral.pt"
-    oki_file = "./oki_020.pt"
+    neutral_file = "./neutral_training3.pt"
+    oki_file = "./oki_training3.pt"
     if (len(sys.argv) > 1):
         file = str(sys.argv[1])
 
@@ -50,7 +50,7 @@ def main():
 
     # Setup epsilon values for explore/exploit dilemma during training
     EPSILON_MAX = 1.0
-    EPSILON_MIN = 0.0
+    EPSILON_MIN = 0.1
     epsilon = EPSILON_MAX
 
     # Training parameters
@@ -104,7 +104,7 @@ def main():
     opp_hp_weight = 10
 
     # ------------------------- TRAINING LOOP ---------------------------------
-    for episode in range(1, n_episodes):
+    for episode in range(601, n_episodes):
 
         print("Training Episode: " + str(episode))
 
@@ -237,8 +237,8 @@ def main():
         print("--------------------")
 
         # Save the models every episode
-        neutral_agent.save('./neutral_training3.pt', epsilon, rewards, wins, damage_done, damage_taken)
-        oki_agent.save('./oki_training3.pt', epsilon, rewards, wins, damage_done, damage_taken)
+        neutral_agent.save('./neutral_training4.pt', epsilon, rewards, wins, damage_done, damage_taken)
+        oki_agent.save('./oki_training4.pt', epsilon, rewards, wins, damage_done, damage_taken)
 
         # Force garbage collection between episodes
         gc.collect()
@@ -332,8 +332,8 @@ def main():
             # If this validation is the best so far, save it
             if win_rate >= best_win_rate:
                 print("Saving new best checkpoints.")
-                neutral_agent.save('./neutral_best2.pt', epsilon, rewards, wins, damage_done, damage_taken)
-                oki_agent.save('./oki_best2.pt', epsilon, rewards, wins, damage_done, damage_taken)
+                neutral_agent.save('./neutral_best4.pt', epsilon, rewards, wins, damage_done, damage_taken)
+                oki_agent.save('./oki_best4.pt', epsilon, rewards, wins, damage_done, damage_taken)
                 best_win_rate = win_rate
 
             # ---------------------- END VALIDATION LOOP ----------------------
