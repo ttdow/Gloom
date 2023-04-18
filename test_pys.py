@@ -103,6 +103,8 @@ def main():
         # --------------------------- TESTING LOOP ----------------------------
         for episode in range(n_episodes):
 
+            print("EPISODE: " + str(episode))
+
             # Reset environment state at the start of each episode
             state = env.reset(p2=RLTEST)
 
@@ -133,7 +135,6 @@ def main():
                 opp_state = env.getP1().getOpponentState()
                 if type(opp_state) != str and type(prev_opp_state) != str and type(opp_state) != int and type(prev_opp_state) != int:
                     if opp_state.equals(env.getP1().gateway.jvm.enumerate.State.DOWN) and oki == False:
-                        print('START OKI')
                         oki = True
 
                 # Our agent actions:
@@ -165,7 +166,6 @@ def main():
 
                     # Check if Oki model timer is finished
                     if action_count == 90 or (state[0] - next_state[0] > 0):
-                        print('END OKI')
                         oki = False
                         action_count = 0
 
@@ -215,14 +215,15 @@ def main():
                     # Increment round counter
                     round += 1
 
-                    # Report the current win rate
-                    print("Wins: " + str(results_dict[opponent_file]['wins']))
-                    
                     # Reset state for next round
                     state = env.reset(p2=RLTEST)
 
                     # Force garbage collection at the end of each round
                     gc.collect()
+
+            # Report the current win rate
+            print("Wins: " + str(results_dict[opponent_file]['wins']))
+            print("------------------------------")
 
             # Reload Oki and Neutral checkpoints at the end of each episode to 'forget' testing fights
             neutral_agent.load(neutral_file)
