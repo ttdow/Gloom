@@ -8,7 +8,7 @@ Gloom is used to train a multi-stage deep Q-learning pipeline which will use dif
 
 This repository utilizes the [fightingICE environment](https://github.com/TeamFightingICE/Gym-FightingICE). More information is available at the [official FightingICE website](http://www.ice.ci.ritsumei.ac.jp/~ftgaic/).
 
-Banner generated from [this website](https://liyasthomas.github.io/banner/). Art taken from [](https://www.blazblue.jp/tag/manual-switch/en/character/uni.html)
+Banner generated from [this website](https://liyasthomas.github.io/banner/). Art taken from [UNDER NIGHT IN-BIRTH Exe:Late[cl-r]](https://www.blazblue.jp/tag/manual-switch/en/character/uni.html)
 
 ## TODO ##
 
