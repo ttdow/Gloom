@@ -1,44 +1,19 @@
-# CPSC601Project #
+# Gloom: Modular Reinforcement Learning for Fighting Game AI #
+
+![Gloom banner image](banner.png)
+
+Gloom is a modular pipeline for training deep Q-learning agents to reporduce complex, human-like strategies in fighting games.
+
+Gloom is used to train a multi-stage deep Q-learning pipeline which will use different models for the different stages during a match in a fighting game. By implementing different models for different stages of a match we propose that different sub-goals can be accurately and fluidly defined for the AI player during these different stages. We have defined a model for both the neutral and turns stages - the neutral model - and a separate model for the okizeme stage - the okizeme model. The neutral model allows us to craft a specific reward function that motivates the model into taking actions that will result in knocking down their opponent. Then, the okizeme model can be used to predict the opponents movements once they have been knocked down and devise a plan that results in the opponent taking maximal damage once they stand back up. The okizeme model was designed to be allowed to perform actions for 90 frames, where $1 frame = 0.0167s$.
+
+This repository utilizes the [fightingICE environment](https://github.com/TeamFightingICE/Gym-FightingICE). More information is available at the [official FightingICE website](http://www.ice.ci.ritsumei.ac.jp/~ftgaic/).
+
+Banner generated from [this website](https://liyasthomas.github.io/banner/). Art taken from [](https://www.blazblue.jp/tag/manual-switch/en/character/uni.html)
 
 ## TODO ##
-
----- REVIEW DNN ARCHITECTURE -----
-<ul>
-<li>Research?</li>
-</ul>
-
----- FIND A WAY TO GET MORE OPPONENT AIs ----
-<ul>
-<li><s>Replicate and train the RL agents described in the Halina paper</s></li>
-<li>Dig through competition AIs for ones we can replicate</li>
-</ul>
-
----- FIX GPU IMPLEMENTATION -----
-<ul><li>Track down tensors not being updated on GPU (I think this is the issue?)</li></ul>
-
----- UPDATE LOGGABLE METRICS -----
-<ul>
-<li><s>Add more metrics to be logged</s></li>
-<li>Time spent in each model in the combined</li>
-<li><s>Round win rate</s></li>
-<li><s>Damage done/taken</s></li>
-<li>Actions taken</li>
-</ul>
-
------ DUELING DEEP Q NETWORK -----
-<ol>
-<li>When calculating the Q-value for a (state, action) pair we calculate two outputs: 1.) advantage and 2.) state</li>
-	<ol><li>Advantage: this is the same as the normal output for a DQN (the action space Q-values given the state)</li>
-	<li>State: this is the value of being in the current state (1 normalized value)</li></ol>
-<li>Then both the state value and advantage values are used to calculate the final Q-value<br>
-	q_values = state_value + advantage_values - advantage.mean() 
-		This way being in a certain state can provide a reward of its own</li>
-</ol>
 
 ----- DISTRIBUTIONAL Q NETWORK -----
 
 ----- NOISY NETS -----
 
 ----- SOFT Q-LEARNING -----
-
------ EVOLUTIONARY HYPERPARAMETER OPTIMIZATION -----
