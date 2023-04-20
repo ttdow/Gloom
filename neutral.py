@@ -24,8 +24,13 @@ def calc_reward(env, env_state, action, next_env_state, prev_opp_state, opp_stat
 
     # ---------------------- Incentive for downs ------------------------------
     if type(opp_state) != str and opp_state != None:
+<<<<<<< HEAD
         if str(opp_state) == "DOWN" and str(prev_opp_state):
             reward += 100
+=======
+        if opp_state.equals(env.getP1().gateway.jvm.enumerate.State.DOWN) and opp_state != prev_opp_state:
+            reward += 500
+>>>>>>> origin/ben-testing
 
     player_old_HP = env_state[0]
     player_new_HP = next_env_state[0]
@@ -122,7 +127,7 @@ def main():
     epsilon = EPSILON_MAX
 
     # Training parameters
-    n_episodes = 50       # Number of training episodes
+    n_episodes = 1000       # Number of training episodes
     n_rounds = 3           # Round per episode
 
     # Hyperparameters
@@ -248,7 +253,11 @@ def main():
         rewards.append(total_reward)
 
         #Save the model checkpoint
+<<<<<<< HEAD
         agent.save('./test.pt', epsilon, rewards, wins, damage_done, damage_taken)
+=======
+        agent.save('./neutral_006.pt', epsilon, rewards, wins, damage_done, damage_taken)
+>>>>>>> origin/ben-testing
 
         # Force garbage collection between episodes
         gc.collect()
