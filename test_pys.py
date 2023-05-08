@@ -55,7 +55,7 @@ def main():
     env = gym.make("FightingiceDataNoFrameskip-v0", java_env_path="", port=4242, freq_restart_java=100000)
 
     # Define pre-trained opponent model files
-    opponent_file_list = ["aggressive.pt", "balanced.pt"]
+    opponent_file_list = ["counter.pt", "aggressive.pt", "balanced.pt"]
 
     # Test against each AI opponent in the list
     for opponent_file in opponent_file_list:
